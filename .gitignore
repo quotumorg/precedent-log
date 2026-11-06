@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+/.scratch/
+/demo/out/
+# Private post-commit attestation from the superseded checkout.
+/evidence/validation-r5.txt

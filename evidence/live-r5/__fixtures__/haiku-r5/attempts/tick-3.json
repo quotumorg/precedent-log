@@ -1,0 +1,1 @@
+{"board": "precedent-demo", "provider": "anthropic", "model": "claude-haiku-5-5", "base_url": null, "timeout": 180.0, "attempt_dir": "<run-root>/haiku-r5/attempts", "dispatch_result": "<run-root>/haiku-r5/attempts/dispatch-3.json"}

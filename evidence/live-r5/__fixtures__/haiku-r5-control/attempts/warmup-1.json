@@ -1,0 +1,1 @@
+{"provider": "anthropic", "model": "claude-haiku-5-5", "base_url": null, "timeout": 300.0, "session_id": "warmup-1", "workspace": "<run-root>/haiku-r5-control", "result_file": "<run-root>/haiku-r5-control/attempts/warmup-1-result.json"}

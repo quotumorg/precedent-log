@@ -1,0 +1,13 @@
+T1 attempt-1 | blocked | . | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | output=False
+$ env HERMES_HOME=<plugin>/demo/out/development-02/hermes-home hermes precedent add --board precedent-demo --question 'staging or prod DB for the schema migration?' --ruling 'Use staging for the local migration plan. Production operations require fresh approval.' --keys schema,migration --source-task t_80f8337a
+$ env HERMES_HOME=<plugin>/demo/out/development-02/hermes-home hermes kanban unblock t_80f8337a --reason 'Use staging for the local migration plan. Production operations require fresh approval.'
+T1 human-answer | ready | . | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | output=False
+T1 attempt-1 | done | . | Human answer used: staging; users-plan.md written. | citation=False | output=True
+T2 attempt-1 | done | . | per precedent P-1: staging chosen; orders-plan.md written. No operations authorized. | citation=True | output=True
+T3 attempt-1 | blocked | . | may I drop the legacy column in prod during the schema migration? no precedent applies: P-1 chooses the environment for a local plan; it does not grant fresh permission to drop a production column. [precedent-log] considered candidates P-1; worker explained why none applies | citation=False | output=False
+B2 attempt-1 | running | . |  | citation=False | output=False
+B2 attempt-2 | running | . |  | citation=False | output=False
+B2 attempt-3 | blocked | . | staging or prod DB for the schema migration? [precedent-log] escalated without citing candidates P-1; Cite an active candidate that matches this reason, or use 'no precedent applies:' with at least 20 characters explaining why and naming every candidate: P-1 | citation=False | output=False
+$ env HERMES_HOME=<plugin>/demo/out/development-02/hermes-home hermes precedent retire P-1 --board precedent-demo --reason 'Demo retirement: require a new decision.'
+T4 attempt-1 | blocked | . | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | output=False
+Transcript: <plugin>/demo/out/development-02/transcript.json

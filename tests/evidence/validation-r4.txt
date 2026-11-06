@@ -1,0 +1,58 @@
+
+✓ manifest : plugin.yaml parses
+✓ manifest fields : name, version, description present
+✓ requires_hermes : spec '>=0.23.0' parses
+✓ config schema : not declared
+✓ requires_env : all entries UPPER_SNAKE
+✓ oauth : not declared
+✓ loadable : entry: __init__.py
+✓ python dependencies : none declared
+✓ capability probe : register() ran in isolation
+✓ declared tools : matches registrations
+✓ declared hooks : matches registrations
+✓ declared middleware : matches registrations
+✓ built-in tool collisions : no tools to check
+✓ security scan : caution
+✓ no core override : no runtime rebinds of Hermes core
+⚠ security scan caution: encoded_exfil (transcript.json:10480), encoded_exfil
+(transcript.json:10509), encoded_exfil (transcript.json:11222), encoded_exfil
+(transcript.json:11290), encoded_exfil (transcript.json:11983), encoded_exfil
+(transcript.json:12032), encoded_exfil (transcript.json:12763), encoded_exfil
+(transcript.json:12793), encoded_exfil (transcript.json:13564), encoded_exfil
+(transcript.json:13574), encoded_exfil (transcript.json:14316), encoded_exfil
+(transcript.json:14383), encoded_exfil (transcript.json:15078), encoded_exfil
+(transcript.json:15125), encoded_exfil (transcript.json:15820), encoded_exfil
+(transcript.json:15886), encoded_exfil (transcript.json:16581), encoded_exfil
+(transcript.json:16666), encoded_exfil (transcript.json:17466), encoded_exfil
+(transcript.json:18208), encoded_exfil (transcript.json:18970), encoded_exfil
+(transcript.json:19712), encoded_exfil (transcript.json:20474), encoded_exfil
+(transcript.json:21216), encoded_exfil (transcript.json:21978), encoded_exfil
+(transcript.json:22720), encoded_exfil (transcript.json:23481), encoded_exfil
+(transcript.json:4420), encoded_exfil (transcript.json:5162), encoded_exfil
+(transcript.json:5894), encoded_exfil (transcript.json:5924), encoded_exfil
+(transcript.json:6636), encoded_exfil (transcript.json:6663), encoded_exfil
+(transcript.json:7398), encoded_exfil (transcript.json:7424), encoded_exfil
+(transcript.json:8137), encoded_exfil (transcript.json:8206), encoded_exfil
+(transcript.json:8898), encoded_exfil (transcript.json:9006), encoded_exfil
+(transcript.json:9680), encoded_exfil (transcript.json:9748)
+⚠ private core imports (catalog rule 9: public surfaces only; these can break on
+any release):
+demo/out/development-02/hermes-home/plugins/precedent-log/precedent_log/guard.py
+:19 agent.delegation_context.is_delegated_child_process_context;
+demo/out/development-02/hermes-home/plugins/precedent-log/precedent_log/store.py
+:44 hermes_cli.kanban_db.get_current_board; demo/runtime.py:30
+hermes_cli.plugins.get_plugin_manager; demo/runtime.py:31
+hermes_cli.runtime_provider.resolve_runtime_provider; demo/runtime.py:32
+run_agent.AIAgent; demo/runtime.py:75 hermes_cli.kanban_db; demo/runtime.py:76
+hermes_cli.kanban_db_dispatch.dispatch_once; demo/runtime.py:141
+hermes_cli.main.main;
+demo/out/development-02/hermes-home/plugins/precedent-log/precedent_log/guard.py
+:26 agent.delegation_context.owned_kanban_task;
+demo/out/development-02/hermes-home/plugins/precedent-log/precedent_log/store.py
+:51 hermes_cli.kanban_db.kanban_db_path; and 5 more. Use ctx.* / documented
+plugin APIs, or open an issue for the seam you need.
+◆ Isolation : runs in the plugin host (plugins.isolation: host)
+  · ctx.register_cli_command() is skipped in the host (`hermes <command>`
+subcommands are wired into the local CLI parser)
+
+Validation passed.

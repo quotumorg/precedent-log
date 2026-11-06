@@ -1,0 +1,17 @@
+test_advisory_commits_block_with_candidates_without_pending_veto (test_r5.R5Tests.test_advisory_commits_block_with_candidates_without_pending_veto) ... ok
+test_custom_pin_consistency_and_clear_refusal (test_r5.R5Tests.test_custom_pin_consistency_and_clear_refusal) ... ok
+test_demo_preflight_interpreter_source_helper_before_output (test_r5.R5Tests.test_demo_preflight_interpreter_source_helper_before_output) ... ok
+test_hostile_text_is_quoted_data_through_core_renderer (test_r5.R5Tests.test_hostile_text_is_quoted_data_through_core_renderer) ... ok
+test_invalid_veto_config_refuses_with_clear_error (test_r5.R5Tests.test_invalid_veto_config_refuses_with_clear_error) ... ok
+test_multi_plugin_aggregate_budget_can_omit_valid_section (test_r5.R5Tests.test_multi_plugin_aggregate_budget_can_omit_valid_section) ... ok
+test_oversized_newest_does_not_hide_short_row_in_core (test_r5.R5Tests.test_oversized_newest_does_not_hide_short_row_in_core) ... ok
+test_reserved_markers_rejected_on_write_legacy_rows_escape_in_core (test_r5.R5Tests.test_reserved_markers_rejected_on_write_legacy_rows_escape_in_core) ... ok
+test_standard_pins_both_directions_prompt_and_block_transition (test_r5.R5Tests.test_standard_pins_both_directions_prompt_and_block_transition) ... ok
+test_syntactic_citation_can_explicitly_ignore_the_ruling (test_r5.R5Tests.test_syntactic_citation_can_explicitly_ignore_the_ruling) ... ok
+test_syntactic_explanation_can_be_id_plus_punctuation (test_r5.R5Tests.test_syntactic_explanation_can_be_id_plus_punctuation) ... ok
+test_two_profiles_contradictory_p1_through_core_renderer (test_r5.R5Tests.test_two_profiles_contradictory_p1_through_core_renderer) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 6.595s
+
+OK

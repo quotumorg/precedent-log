@@ -1,0 +1,123 @@
+test_candidate_explanation_and_quarantine_reach_human_in_core (test_core.CoreTests.test_candidate_explanation_and_quarantine_reach_human_in_core) ... ok
+test_explicit_scoped_and_worker_pinned_board_real_transition (test_core.CoreTests.test_explicit_scoped_and_worker_pinned_board_real_transition) ... Real transitions agree with explicit, scoped and dispatcher-pinned boards.
+ok
+test_real_core_respawn_after_veto_and_max_retries_one (test_core.CoreTests.test_real_core_respawn_after_veto_and_max_retries_one) ... Core recovery: veto -> ready -> veto -> ready -> warned needs_input; max_retries=1 parks after first veto.
+ok
+test_real_dependency_conversion_and_public_observer (test_core.CoreTests.test_real_dependency_conversion_and_public_observer) ... Actual loaded dependency gate + committed events: no parent -> gated needs_input; open parent -> dependency wait.
+ok
+test_real_loaded_dispatch_refuses_review_write_routes (test_core.CoreTests.test_real_loaded_dispatch_refuses_review_write_routes) ... Actual loader + tool dispatcher: all six review write routes refused; store unchanged.
+ok
+test_real_stop_gates_partial_seam_and_successful_terminal_clearing (test_core.CoreTests.test_real_stop_gates_partial_seam_and_successful_terminal_clearing) ... Real stop gates: edited turn continues; no edits and nudge cap still stop; successful complete/block clears pending state.
+ok
+test_slow_fake_treatment_and_control (test_demo.DemoTests.test_slow_fake_treatment_and_control) ... Run directory: <run-root>
+Warm-up 1 | rc=0 | no conversation or task claim
+T1 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False
+$ env HERMES_HOME=<run-root> HERMES_KANBAN_BOARD=precedent-demo hermes precedent add --board precedent-demo --question 'staging or prod DB for the schema migration?' --ruling 'Use staging for the local migration plan. Production operations require fresh approval.' --keys schema,migration --source-task t_5e7d9b0a
+$ env HERMES_HOME=<run-root> HERMES_KANBAN_BOARD=precedent-demo hermes kanban unblock t_5e7d9b0a --reason 'Use staging for the local migration plan. Production operations require fresh approval.'
+T1 human-answer | ready | . | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False
+T1 attempt-1 | done | . | Human answer used: staging; users-plan.md written. | citation=False | path=. | output=True
+T2 attempt-1 | done | . | per precedent P-1: staging chosen; orders-plan.md written. No operations authorized. | citation=True | path=veto | output=True
+T3 attempt-1 | blocked | needs_input | may I drop the legacy column in prod during the schema migration? no precedent applies: P-1 chooses the environment for a local plan; it does not grant fresh permission to drop a production column. [precedent-log] considered candidates P-1; worker explained why none applies | citation=False | path=. | output=False
+B2 attempt-1 | running | . |  | citation=False | path=. | output=False
+B2 attempt-2 | running | . |  | citation=False | path=. | output=False
+B2 attempt-3 | blocked | needs_input | staging or prod DB for the schema migration? [precedent-log] escalated without citing candidates P-1; Cite an active candidate that matches this reason, or use 'no precedent applies:' with at least 20 characters explaining why and naming every candidate: P-1 | citation=False | path=. | output=False
+$ env HERMES_HOME=<run-root> HERMES_KANBAN_BOARD=precedent-demo hermes precedent retire P-1 --board precedent-demo --reason 'Demo retirement: require a new decision.'
+T4 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? [precedent-log] checked 0 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False
+Transcript: <run-root>
+
+Run directory: <run-root>
+Warm-up 1 | rc=0 | no conversation or task claim
+T1 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? | citation=False | path=. | output=False
+Control: no ruling stored; only the T1 card receives the human answer.
+$ env HERMES_HOME=<run-root> HERMES_KANBAN_BOARD=precedent-demo hermes kanban unblock t_476c0fea --reason 'Use staging for the local migration plan. Production operations require fresh approval.'
+T1 human-answer | ready | . | staging or prod DB for the schema migration? | citation=False | path=. | output=False
+T1 attempt-1 | done | . | Human answer used: staging; users-plan.md written. | citation=False | path=. | output=True
+T2 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? | citation=False | path=. | output=False
+T3 attempt-1 | blocked | needs_input | may I drop the legacy column in prod during the schema migration? | citation=False | path=. | output=False
+B2 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? | citation=False | path=. | output=False
+T4 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? | citation=False | path=. | output=False
+Transcript: <run-root>
+
+ok
+test_block_rejection_final_text_and_failed_completion_are_not_citations (test_demo_observations.DemoObservationTests.test_block_rejection_final_text_and_failed_completion_are_not_citations) ... ok
+test_citation_accepts_real_wording_and_fake_phrase (test_demo_observations.DemoObservationTests.test_citation_accepts_real_wording_and_fake_phrase) ... ok
+test_citation_needs_both_summary_and_output_with_word_boundaries (test_demo_observations.DemoObservationTests.test_citation_needs_both_summary_and_output_with_word_boundaries) ... ok
+test_cli_rejects_repo_home_or_output_before_creating_anything (test_demo_observations.DemoObservationTests.test_cli_rejects_repo_home_or_output_before_creating_anything) ... ok
+test_completion_for_another_task_does_not_count (test_demo_observations.DemoObservationTests.test_completion_for_another_task_does_not_count) ... ok
+test_default_output_is_outside_repo (test_demo_observations.DemoObservationTests.test_default_output_is_outside_repo) ... ok
+test_git_parent_walk_handles_directory_file_and_symlink (test_demo_observations.DemoObservationTests.test_git_parent_walk_handles_directory_file_and_symlink) ... ok
+test_successful_block_is_not_a_veto_or_prompt_path (test_demo_observations.DemoObservationTests.test_successful_block_is_not_a_veto_or_prompt_path) ... ok
+test_veto_path_requires_matching_tool_result_before_completion (test_demo_observations.DemoObservationTests.test_veto_path_requires_matching_tool_result_before_completion) ... ok
+test_warmup_retains_failed_start_then_retries_in_new_process (test_demo_observations.DemoObservationTests.test_warmup_retains_failed_start_then_retries_in_new_process) ... ok
+test_warmup_timeout_records_failure_and_aborts_before_t1 (test_demo_observations.DemoObservationTests.test_warmup_timeout_records_failure_and_aborts_before_t1) ... ok
+test_alias_schema_damage_quarantines_entire_board (test_faults.FaultTests.test_alias_schema_damage_quarantines_entire_board) ... ok
+test_dependency_lookup_and_guard_failures_are_visible (test_faults.FaultTests.test_dependency_lookup_and_guard_failures_are_visible) ... ok
+test_invalid_event_ids_do_not_hide_later_r1_veto_counts (test_faults.FaultTests.test_invalid_event_ids_do_not_hide_later_r1_veto_counts) ... ok
+test_machine_pin_and_stale_env_named_board_match_core_path (test_faults.FaultTests.test_machine_pin_and_stale_env_named_board_match_core_path) ... ok
+test_matching_citation_is_valid_outside_top_three_display_cap (test_faults.FaultTests.test_matching_citation_is_valid_outside_top_three_display_cap) ... ok
+test_middle_event_damage_keeps_valid_counts_and_future_events (test_faults.FaultTests.test_middle_event_damage_keeps_valid_counts_and_future_events) ... ok
+test_r1_veto_budget_migrates_even_with_torn_events (test_faults.FaultTests.test_r1_veto_budget_migrates_even_with_torn_events) ... ok
+test_real_cli_repair_creates_backup_and_refuses_marked_process (test_faults.FaultTests.test_real_cli_repair_creates_backup_and_refuses_marked_process) ... ok
+test_session_cwd_failure_cannot_authorize_worker_relative_writes (test_faults.FaultTests.test_session_cwd_failure_cannot_authorize_worker_relative_writes) ... ok
+test_torn_archive_failure_does_not_disable_gate (test_faults.FaultTests.test_torn_archive_failure_does_not_disable_gate) ... ok
+test_unreadable_retirement_cannot_be_restored_by_repair (test_faults.FaultTests.test_unreadable_retirement_cannot_be_restored_by_repair) ... ok
+test_bad_board_and_no_task_do_not_veto_forever (test_gate.GateTests.test_bad_board_and_no_task_do_not_veto_forever) ... ok
+test_boards_isolate_matches_and_counters (test_gate.GateTests.test_boards_isolate_matches_and_counters) ... ok
+test_citation_active_retired_and_unknown (test_gate.GateTests.test_citation_active_retired_and_unknown) ... ok
+test_corrupt_log_gate_still_answers (test_gate.GateTests.test_corrupt_log_gate_still_answers) ... ok
+test_full_gate_500_rulings_timing (test_gate.GateTests.test_full_gate_500_rulings_timing) ... Full gate, 500 rulings: median 4.514 ms, max 5.073 ms
+ok
+test_justification_minimum_is_single_line (test_gate.GateTests.test_justification_minimum_is_single_line) ... ok
+test_matching_two_vetoes_then_uncited_pass (test_gate.GateTests.test_matching_two_vetoes_then_uncited_pass) ... ok
+test_missing_and_unreadable_files_never_raise (test_gate.GateTests.test_missing_and_unreadable_files_never_raise) ... ok
+test_observer_counts_actual_kind_read_only (test_gate.GateTests.test_observer_counts_actual_kind_read_only) ... ok
+test_respawn_durable_count_and_env_identity (test_gate.GateTests.test_respawn_durable_count_and_env_identity) ... ok
+test_unmatched_and_kind_filter (test_gate.GateTests.test_unmatched_and_kind_filter) ... ok
+test_cli_and_slash_refuse_worker_and_descendant_mutations (test_guard_commands.GuardCommandTests.test_cli_and_slash_refuse_worker_and_descendant_mutations) ... ok
+test_guard_paths_traversal_symlinks_and_v4a (test_guard_commands.GuardCommandTests.test_guard_paths_traversal_symlinks_and_v4a) ... ok
+test_guard_terminal_process_and_code (test_guard_commands.GuardCommandTests.test_guard_terminal_process_and_code) ... ok
+test_human_commands_and_provenance (test_guard_commands.GuardCommandTests.test_human_commands_and_provenance) ... ok
+test_real_in_process_delegated_child (test_guard_commands.GuardCommandTests.test_real_in_process_delegated_child) ... ok
+test_section_cap_char_budget_and_truncation (test_guard_commands.GuardCommandTests.test_section_cap_char_budget_and_truncation) ... ok
+test_section_many_long_rulings_stays_within_default_budget (test_guard_commands.GuardCommandTests.test_section_many_long_rulings_stays_within_default_budget) ... ok
+test_section_shows_ids_question_ruling_but_not_match_metadata (test_guard_commands.GuardCommandTests.test_section_shows_ids_question_ruling_but_not_match_metadata) ... ok
+test_frozen_results_and_retirement (test_heldout.HeldoutTests.test_frozen_results_and_retirement) ... ok
+test_real_loader_registrations_and_core_dispatch (test_integration.IntegrationTests.test_real_loader_registrations_and_core_dispatch) ... Real loader: 5 hooks, 2 slash commands, 1 CLI, 1 prompt section; core block/modify directives verified.
+ok
+test_500_rulings_timing (test_match.MatchTests.test_500_rulings_timing) ... Matcher, 500 rulings: median 0.587 ms, max 0.714 ms (budget 20 ms)
+ok
+test_all_keys_and_whole_words (test_match.MatchTests.test_all_keys_and_whole_words) ... ok
+test_keys_do_not_fallback_and_empty_normalized_key (test_match.MatchTests.test_keys_do_not_fallback_and_empty_normalized_key) ... ok
+test_normalization (test_match.MatchTests.test_normalization) ... ok
+test_sixty_percent_and_two_word_floor (test_match.MatchTests.test_sixty_percent_and_two_word_floor) ... ok
+test_top_three_score_then_newest (test_match.MatchTests.test_top_three_score_then_newest) ... ok
+test_alias_cli_and_whole_normalized_keys (test_review.ReviewTests.test_alias_cli_and_whole_normalized_keys) ... ok
+test_analytics_failures_annotated_on_every_policy_branch (test_review.ReviewTests.test_analytics_failures_annotated_on_every_policy_branch) ... ok
+test_env_clearing_global_board_option_and_repair_guarded (test_review.ReviewTests.test_env_clearing_global_board_option_and_repair_guarded) ... ok
+test_explanation_names_all_previously_shown_candidates (test_review.ReviewTests.test_explanation_names_all_previously_shown_candidates) ... ok
+test_foreign_only_id_is_explicitly_invalid_even_unmatched (test_review.ReviewTests.test_foreign_only_id_is_explicitly_invalid_even_unmatched) ... ok
+test_four_missed_rephrasings_match_human_aliases (test_review.ReviewTests.test_four_missed_rephrasings_match_human_aliases) ... ok
+test_partial_event_tail_recovers_and_retains_veto_counts (test_review.ReviewTests.test_partial_event_tail_recovers_and_retains_veto_counts) ... ok
+test_policy_storage_failure_stays_bounded_and_visible_in_process (test_review.ReviewTests.test_policy_storage_failure_stays_bounded_and_visible_in_process) ... ok
+test_process_stdin_writer_refused_without_literal_store_path (test_review.ReviewTests.test_process_stdin_writer_refused_without_literal_store_path) ... ok
+test_profile_override_and_respawn_counts (test_review.ReviewTests.test_profile_override_and_respawn_counts) ... ok
+test_quarantine_and_repair_never_resurrect_retirement (test_review.ReviewTests.test_quarantine_and_repair_never_resurrect_retirement) ... ok
+test_retired_unrelated_unknown_and_gibberish_citations_vetoed (test_review.ReviewTests.test_retired_unrelated_unknown_and_gibberish_citations_vetoed) ... ok
+test_script_indirection_and_marked_store_add_refused (test_review.ReviewTests.test_script_indirection_and_marked_store_add_refused) ... ok
+test_ten_new_questions_are_candidates_not_orders (test_review.ReviewTests.test_ten_new_questions_are_candidates_not_orders) ... ok
+test_terminal_symlink_alias_cannot_replace_log (test_review.ReviewTests.test_terminal_symlink_alias_cannot_replace_log) ... ok
+test_terminal_workdir_refuses_valid_worker_append (test_review.ReviewTests.test_terminal_workdir_refuses_valid_worker_append) ... ok
+test_two_vetoes_then_visible_warning_not_endless_loop (test_review.ReviewTests.test_two_vetoes_then_visible_warning_not_endless_loop) ... ok
+test_unmarked_same_user_is_outside_boundary_and_ordinary_edits_detected (test_review.ReviewTests.test_unmarked_same_user_is_outside_boundary_and_ordinary_edits_detected) ... ok
+test_add_retire_restart_and_audit (test_store.StoreTests.test_add_retire_restart_and_audit) ... ok
+test_bad_schema_is_skipped_and_lock_wait_is_bounded (test_store.StoreTests.test_bad_schema_is_skipped_and_lock_wait_is_bounded) ... ok
+test_board_validation_and_core_pointer (test_store.StoreTests.test_board_validation_and_core_pointer) ... ok
+test_concurrency_eight_processes_200_rows (test_store.StoreTests.test_concurrency_eight_processes_200_rows) ... ok
+test_data_symlinks_do_not_redirect_writes (test_store.StoreTests.test_data_symlinks_do_not_redirect_writes) ... ok
+test_edited_and_deleted_middle_line_number (test_store.StoreTests.test_edited_and_deleted_middle_line_number) ... ok
+test_malformed_versions_and_truncation (test_store.StoreTests.test_malformed_versions_and_truncation) ... ok
+
+----------------------------------------------------------------------
+Ran 81 tests in 69.549s
+
+OK

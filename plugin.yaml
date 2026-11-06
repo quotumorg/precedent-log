@@ -1,0 +1,21 @@
+name: precedent-log
+version: "0.2.0"
+description: >-
+  Human rulings for Kanban workers. Registers pre_tool_call (gate and store
+  guard), kanban_task_blocked (observer), pre_verify (edited-code continuation),
+  post_tool_call and on_session_end (continuation state), slash commands ruling and rulings,
+  CLI command precedent, and system prompt section precedent-log.board.
+author: quotumorg
+license: MIT
+requires_hermes: ">=0.23.0"
+config_schema:
+  precedent_log:
+    type: dict
+    default: {veto: enforce}
+    description: "veto: enforce (default) or advisory. Advisory appends candidates without vetoing."
+provides_hooks:
+  - pre_tool_call
+  - kanban_task_blocked
+  - pre_verify
+  - post_tool_call
+  - on_session_end

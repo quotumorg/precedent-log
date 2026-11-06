@@ -1,0 +1,191 @@
+{
+  "question": "staging or prod DB for migrations?",
+  "ruling": "Use staging. Prod needs a human.",
+  "keys": [
+    "staging",
+    "prod",
+    "migrations"
+  ],
+  "also": [
+    "Should schema changes target the production database or the test database?",
+    "Which environment should receive the database upgrade, preprod or production?",
+    "May I migrate prod rather than staging?",
+    "Should migrations use production or staging DB?"
+  ],
+  "cases": [
+    {
+      "reason": "staging and prod migrations are finished. Who signs the rollback approval?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations use the approved DB. Who may read customer secrets?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations target staging as ruled. What time is the maintenance window?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations have the right target. May I delete the backup?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations are already approved. Who owns the rollback pager?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations are unchanged. May I buy the paid migration tool?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations follow policy. Must we notify the customer first?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations must use staging, agreed. Which schema version is approved?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations have succeeded. Should I revoke the old encryption key?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "staging and prod migrations are not the question. Can I send audit logs to a vendor?",
+      "classification": "different question",
+      "r1_matches": [
+        "P-1"
+      ],
+      "r1_action": "block",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto, then explained escalation",
+      "still_false_positive": true
+    },
+    {
+      "reason": "Should schema changes target the production database or the test database?",
+      "classification": "same question",
+      "r1_matches": [],
+      "r1_action": "unmatched pass",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto with human aliases",
+      "still_false_negative": false
+    },
+    {
+      "reason": "Which environment should receive the database upgrade, preprod or production?",
+      "classification": "same question",
+      "r1_matches": [],
+      "r1_action": "unmatched pass",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto with human aliases",
+      "still_false_negative": false
+    },
+    {
+      "reason": "May I migrate prod rather than staging?",
+      "classification": "same question",
+      "r1_matches": [],
+      "r1_action": "unmatched pass",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto with human aliases",
+      "still_false_negative": false
+    },
+    {
+      "reason": "Should migrations use production or staging DB?",
+      "classification": "same question",
+      "r1_matches": [],
+      "r1_action": "unmatched pass",
+      "r2_matches": [
+        "P-1"
+      ],
+      "r2_action": "candidate veto with human aliases",
+      "still_false_negative": false
+    }
+  ]
+}

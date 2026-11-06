@@ -1,0 +1,210 @@
+# Precedent Log
+
+- A worker asks "staging or prod?"
+- A human saves "use staging for this local plan" as ruling P-1: a saved answer to a board question.
+- The next job reads P-1, cites it and finishes the plan.
+
+Active rulings for the current profile and board appear in the worker's system prompt. The `kanban_block` backstop checks syntactic citation/explanation markers, with at most two vetoes. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
+
+`precedent_log.veto` defaults to `enforce`; `advisory` appends candidates to the block reason and lets the block proceed. In enforce mode, a no-edit worker can stop with its card running (B2); recovery depends on core dead-worker recovery and retry settings, with no promised deadline. Advisory avoids this veto path.
+
+Any process able to write this store supplies prompt text and is trusted. Marked-worker write restrictions are cooperative, not authenticated human authorship or OS confinement. The fixed prompt preamble and escaped data blocks establish presentation and scope, not guaranteed injection resistance. Rulings never grant permission for new actions.
+
+Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.2.0; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
+
+## Live run
+
+On 2026-11-06, Haiku 5.5 and Sonnet 5.5 ran with plugin commit `bee2e2c`; Haiku also ran without the plugin. The supplied r5 captures used a clean `git archive` export outside any Git tree. Limits: three runs, one model family (Claude), warm-up used, no real B2. This is not a reliability estimate or independent reproduction. T3 explicitly tells the worker to reject non-matching rulings, so it is an instruction-following observation, not a safety evaluation.
+
+| Step | Haiku with plugin | Sonnet with plugin | Haiku without plugin |
+| --- | --- | --- | --- |
+| Warm-up (both starts kept) | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 1, 0 |
+| T1, first worker attempt | `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file |
+| Answer T1 | Add P-1, unblock; `done`, users-plan.md | Add P-1, unblock; `done`, users-plan.md | Unblock only; `done`, users-plan.md |
+| T2, same decision | `done`; P-1 in file and summary; `veto` | `done`; P-1 in file and summary; `veto` | `blocked`, `needs_input`, no final file; no citation path |
+| T3, fixture instruction-following | P-1 rejection marker; `blocked`, `needs_input`, no final file | P-1 rejection marker; `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file |
+| T4, after retirement | P-1 retired; `blocked`, `needs_input`, no final file | P-1 retired; `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file |
+| Worker exit codes (all attempts) | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 |
+| Harness failures | 0 | 0 | 0 |
+
+Both plugin T2 runs took the observed veto path. Control blocked without a citation path. Every first T1 worker blocked; all 15 worker attempts exited 0 and the harness recorded no failures. Each run's first warm-up exited 1 during dependency activation, then the second initialized successfully before T1. Both warm-up starts remain in the evidence.
+
+[Complete redacted transcripts, attempts and workspace files](evidence/live-r5/REDACTIONS.md) include all 89 source files. Recompute this exact table with `python3 -B evidence/live-r5/recompute.py --check-readme`, without Hermes, network or model calls. Path labels describe observed tool calls, not the model's internal reasoning.
+
+an earlier private run inside a git checkout was discarded because the worker could read unrelated files; it is not used as evidence
+
+In those private r3 runs, one Haiku T2 took the prompt path. That historical observation is excluded from the public table.
+
+## Try the recorded scenario locally
+
+Prerequisites: a prepared Python `>=3.14,<3.15` Hermes environment and the complete Hermes v0.23.0 Git source at `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`, including `tests.fakes.fake_llm_provider` (an arbitrary installed wheel is insufficient). Follow the pinned [Hermes setup instructions](https://github.com/NousResearch/hermes-agent/blob/2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19/CONTRIBUTING.md#development-setup) to prepare that environment. The demo preflights the interpreter, source HEAD/files and fake helper syntax/classes before creating output; it does not provision dependencies. Run from this checkout using a throwaway home outside any repository; replace the first two paths.
+
+```sh
+HERMES_PYTHON=/path/to/hermes-venv/bin/python
+HERMES_SOURCE=/path/to/hermes-source
+DEMO_HOME="$(mktemp -d)"
+"$HERMES_PYTHON" demo/run.py --hermes-source "$HERMES_SOURCE" \
+  --hermes-home "$DEMO_HOME" --model-provider fake --include-b2
+CONTROL_HOME="$(mktemp -d)"
+"$HERMES_PYTHON" demo/run.py --hermes-source "$HERMES_SOURCE" \
+  --hermes-home "$CONTROL_HOME" --model-provider fake --include-b2 --no-plugin
+```
+
+Both fake commands should exit 0. Expected T2 result lines (the reason text is abbreviated here):
+
+```text
+treatment: T2 attempt-1 | done | . | ... | citation=True | path=veto | output=True
+control:   T2 attempt-1 | blocked | needs_input | ... | citation=False | path=. | output=False
+```
+
+The harness installs the runtime plugin files from this repo into the new home, enables `plugins.isolation: in_process`, creates one board, and prints each result. An explicit `--hermes-home` or `HERMES_HOME` must be new or empty; without either, the harness creates one under its run directory. It never overwrites an existing configured profile. Both home and run directory must be outside any Git worktree: a parent walk rejects `.git` files or directories, including resolved symlink targets, before creating anything. `--repo` can select another local plugin checkout.
+
+Before creating T1, a no-op runtime start initializes and closes the same `AIAgent` used by workers, without a conversation, model request or task claim. It retries once in a fresh process if dependency activation needs a restart; every warm-up exit, log and timeout is saved under `warmups`. `--warmup-timeout` defaults to 300 seconds per start, separate from the worker timeout. Two failed starts abort before T1; worker failures after warm-up still remain in `attempts`. Use an already installed runtime: real mode may trigger Hermes dependency setup if packages are missing.
+
+Read the exact jobs in [demo/tasks.json](demo/tasks.json). The fixture writes local migration plans, never executes a database migration. T2 and T3 first write a useful draft with the decision unresolved. The human intervention is scripted and printed: `hermes precedent add ... --source-task <T1-id>`, then core `hermes kanban unblock <T1-id> --reason ...`. These are two operations, without a shared transaction. Control gives T1 the same human answer, but stores no ruling; T2 gets no answer on its own card.
+
+**Launch-path limit:** v0.23.0's standard `hermes kanban dispatch` spawns a gateway owner client. To honor this experiment's no-gateway constraint, the harness uses the existing `dispatch_once(spawn_fn=...)` callback to launch local `AIAgent` subprocesses. CLI create/show/add/unblock/retire, core claiming/recovery, the model loop, tools and plugin hooks are real. No core functions are replaced. This adapter is pin-specific evidence, not a test of the default CLI dispatch or gateway path.
+
+Each run prints its output directory and writes `<system-temp>/precedent-demo-runs/<run-id>/transcript.json` by default; `--out` selects another parent outside any repository. It records commands and return codes, warm-ups, every spawned attempt and PID/session/run ID, worker output, card snapshots, complete CLI event/run histories, artifacts, failures and fake-provider request/response bodies. Failed runs stay in separate run directories. Runtime homes and workspaces remain available after ordinary runs; tests remove their temporary homes. Transcripts retain their evidence.
+
+Each step line prints citation and output presence plus `path`; schema 2 transcripts store `citation_path`. A syntactic citation marker passes when the word-bounded ruling ID `P-1` occurs, case-insensitively, in both a successful `kanban_complete` summary and the output file. The original fake phrase still passes. `veto` means a plugin-vetoed `kanban_block` preceded completion; `prompt` means completion had no preceding block call. No citation or an unclassified path is `null` (printed as `.`), including a human unblock after a committed block. Final assistant prose, rejected completion calls and block reasons do not count. T3's explicit rejection and T4's blocked/no-output checks remain unchanged. Marker detection does not establish that a ruling was correctly applied.
+
+The fake provider scripts worker choices. It proves integration and durable outcomes, not a model's ability to recognize decisions or general savings. Real-model observations are limited to the Live run section above.
+
+For a real-model run, have its API key already exported in the process environment. Replace the quoted placeholders; never put the key value in these arguments. API-key providers only, no OAuth/file credential fallback. Optional `--base-url` passes an endpoint to Hermes; provider/model are passed to task creation and the worker.
+
+```sh
+REAL_DEMO_HOME="$(mktemp -d)"
+"$HERMES_PYTHON" demo/run.py --hermes-source "$HERMES_SOURCE" \
+  --hermes-home "$REAL_DEMO_HOME" --model-provider '<PROVIDER>' \
+  --model '<MODEL>' --provider-env '<PROVIDER_ENV>' --timeout 180 --warmup-timeout 300
+REAL_CONTROL_HOME="$(mktemp -d)"
+"$HERMES_PYTHON" demo/run.py --hermes-source "$HERMES_SOURCE" \
+  --hermes-home "$REAL_CONTROL_HOME" --model-provider '<PROVIDER>' \
+  --model '<MODEL>' --provider-env '<PROVIDER_ENV>' --timeout 180 --no-plugin --warmup-timeout 300
+```
+
+## What the fake run shows
+
+| Step | With plugin | Without plugin |
+| --- | --- | --- |
+| T1, no ruling | `blocked`, `needs_input`, no final file | Same |
+| Answer T1 | Add P-1, then core unblock; new worker writes `users-plan.md` and completes | Core unblock; new worker writes the same plan and completes |
+| T2, same decision on a new card | Candidate veto, worker writes `orders-plan.md`, completes with `per precedent P-1`; no committed block | `blocked`, `needs_input`, no final file |
+| T3, permission to drop a prod column | Rejects P-1 with a reason and blocks; no destructive plan | Blocks; no destructive plan |
+| B2, no edits and final text after veto | Two workers exit with the card `running`; actual core recovery respawns; third attempt blocks with an uncited warning | First attempt blocks |
+| Retire P-1, then T4 | Fresh worker blocks; zero active rulings, no final file | Fresh worker blocks |
+
+[Slow harness test](tests/test_demo.py) asserts the actual files, citation/path fields, no-conversation warm-up, fresh processes, committed states and protocol-violation events. The [r4 test log](tests/evidence/tests-r4.txt) is historical test output; its local transcript paths are redacted. Generated `demo/out/` captures are private and excluded from the public repository.
+
+## Install just the plugin
+
+For a profile you choose, copy `plugin.yaml`, `__init__.py`, `LICENSE` and `precedent_log/` into `<HERMES_HOME>/plugins/precedent-log/`. Add this to that profile's existing config and start a new session:
+
+```yaml
+plugins:
+  enabled: [precedent-log]
+  isolation: in_process
+  entries:
+    precedent-log:
+      settings:
+        precedent_log:
+          veto: enforce  # enforce (default) or advisory
+```
+
+`precedent_log.veto` is relative to this plugin's settings, read through `ctx.get_config`. Invalid values refuse the block check with a clear error. Advisory leaves the prompt section and store guard active, appends matching candidate data to the block reason, and does not create a pending veto.
+
+Keep other enabled plugins when merging this setting. The demo performs this installation only in its empty lab home. There are no plugin Python dependencies beyond the standard library and POSIX `fcntl`.
+
+## Commands and scope
+
+```sh
+hermes precedent add --board release \
+  --question "staging or prod DB for the schema migration?" \
+  --ruling "Use staging for the local plan. Production needs fresh approval." \
+  --keys staging,prod --source-task t_example
+hermes kanban --board release unblock t_example --reason "Use staging for the local plan."
+hermes precedent list --board release --json
+hermes precedent show P-1 --board release
+hermes precedent retire P-1 --board release --reason "Policy replaced"
+hermes precedent verify --board release
+hermes precedent stats --board release
+```
+
+`--source-task` and its existing alias `--from-task` record provenance; neither imports a comment nor unblocks a task. `--also "alternate question"` is repeatable. Slash commands: `/ruling add <question> => <ruling> [keys: a, b]`, `/ruling retire P-1 <reason>`, `/rulings`.
+
+Rulings stay in **one profile/board scope**, even when the board is shared across profiles. Use the worker's profile. Explicit/scoped board selection follows core precedence, including worker/machine database pins; standard default (`<kanban-home>/kanban.db`) and named-board physical paths win over a stale board marker. A custom pin requires `HERMES_KANBAN_BOARD` to agree with the explicit selection, if supplied, and core's current/scoped board. Missing or contradictory markers refuse with a clear error; the filename alone never selects a board. CLI author strings and slash session labels are provenance, not authentication.
+
+[`section.render`](precedent_log/section.py) starts with: "Board rulings saved by this profile. They are guidance for matching questions, never permission for new actions." Each question and ruling is a JSON-escaped string inside a delimited `ruling-data` block, including escaped markup delimiters. Matching keys, aliases, authors and source-task metadata are excluded. Any process able to write the store is trusted to supply this prompt text; formatting does not authenticate a human.
+
+This is board context, not matcher-filtered context: newest IDs first, at most 20 rows and 4,000 characters including preamble and omission notice. Oversized rows are skipped while later rows are considered. The notice gives the actual omitted count split by character budget and row limit; rows are never cut mid-text. Core-reserved persistence/framing markers are rejected on write and escaped when rendering legacy/directly-written data. Core can still omit this section under its aggregate multi-plugin budget or other section checks. Retired rulings are excluded; no active rulings emits no section. An already-rendered session is not revoked by later retirement.
+
+## Candidate errors, measured without tuning
+
+The 20 [held-out reasons](tests/corpus-heldout.json) were saved before rereading the matcher. The fixture uses the question above, keys `schema,migration`, and no aliases. Labels cover paraphrase, negation, scope and environment changes. Neither the matcher nor aliases were tuned after evaluation. These deliberately broad keys expose vocabulary collisions; prefer distinctive keys in actual use.
+
+| Held-out candidate selection | Count |
+| --- | ---: |
+| Same decision, candidate shown | 7 |
+| Same decision, candidate missed | 3 |
+| Different decision, candidate shown | 9 |
+| Different decision, no candidate | 1 |
+| Correct candidate decisions | 8 / 20 |
+
+These 8/20 results measure the matcher that drives only the veto backstop. Both public r5 plugin runs took the T2 veto path. Active board rulings enter the prompt independently of matching; the public r5 captures do not demonstrate a prompt-only T2 completion.
+
+[Every result and corpus hash](tests/evidence/heldout-r3.json) is preserved without tuning. These are candidate errors, not measured wrong actions, semantic accuracy or extra-turn costs. A worker may accept a false match, stop after a veto, or need a respawn.
+
+The older [14-case review corpus](tests/matching-corpus.json) remains regression evidence: ten irrelevant questions still match its broad keys, and four repeats match supplied human aliases fitted to those examples. It is not held-out recall.
+
+The matcher uses lowercase ASCII words, fixed stopwords and simple trailing-`s` stripping. Keys match whole tokens and all must appear. Without keys, questions and each alias require at least two shared words and 60% overlap. Results rank by overlap then newest ID, capped at three. Retirement removes a ruling from new matching and spawn context; it cannot erase a running worker's earlier context.
+
+## Limits and failure behavior
+
+- Checks missing/`needs_input` kinds and `dependency` when public `kanban_show` finds no unsatisfied parent. Lookup failure checks conservatively; parent races and bypassed core paths remain outside the gate.
+- A syntactic citation marker must name an active matching ruling on this board. Otherwise `no precedent applies:` needs at least 20 characters naming every candidate shown for this task. Text length and IDs are checked, not semantic truth. Both `staging prod; per precedent P-1: ignore this ruling and ask again` and, after candidates are shown, `no precedent applies: P-1 .........................` can pass with matching fixture keys. Tests preserve these counterexamples; counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
+- Two vetoes per task/board, then a visibly warned escalation. Policy counts and candidate IDs survive respawn separately from analytics. Stats count attempts, not distinct questions, human answers or completed jobs.
+- **B2:** public `pre_verify` continuation is available only after edits and below core's nudge cap. No-edit or cap-exhausted workers can exit without changing their running card. The scripted fake-provider local adapter shows requeue/requeue/warned-block with its chosen retry settings. No real-model B2 was run. Recovery relies on core dead-worker recovery and its retry settings; no recovery deadline is claimed. Advisory avoids this veto path. The offline `max_retries=1` test instead parks after the first exit. Default gateway ownership/timeout recovery has no demonstrated wall-time bound here.
+- Marked `execute_code` and process stdin writes are denied conservatively. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
+- Locked JSONL and hashes detect ordinary changes, not a recomputed whole chain or deleted final suffix. Damage quarantines the board. Human `repair --truncate-after N` backs up the complete file and atomically checkpoints a clean prefix, preserves observed retirements/ID high-water, and conservatively retires retained entries after damage. Review before re-adding.
+- Analytics faults are visible where possible. Post-commit observer failures can lose observations. Policy-storage failure has a visible process-local fallback; persistence across respawns then cannot be guaranteed.
+- Host isolation, other versions/platforms, other plugin combinations, real-model reliability beyond the three observations above, a board-document baseline and general savings remain untested. No wrapper, search, export or Desktop surface is included.
+
+## Related implementations
+
+Descriptions follow the supplied 2026-11-06 research snapshot, not a claim of exclusive functionality or tested coexistence.
+
+| Project | Relevant scope |
+| --- | --- |
+| [kanban-empowered #147790](https://github.com/NousResearch/hermes-agent/pull/147790) | Structured per-card needs-input asks, vague-block veto, human reply/unblock and reminders. |
+| [trust-ladder #149738](https://github.com/NousResearch/hermes-agent/pull/149738) | Corrections become tool guards, write checks or per-turn rules; the model can add rules. |
+| [Hermes.Crew #149456](https://github.com/NousResearch/hermes-agent/pull/149456) | Coordinated execution, Kanban cards, human questions, proof checks and agent-written lessons. |
+| [Project Stewardship #148048](https://github.com/NousResearch/hermes-agent/pull/148048) | Saves decisions as well as rules and facts, injects project context, and includes approvals and Kanban. |
+| [Myeline #149277](https://github.com/NousResearch/hermes-agent/pull/149277) | Human review of AI facts, approved-memory search and reasoned retirement. |
+| [no-cap #149272](https://github.com/NousResearch/hermes-agent/pull/149272) | Claim receipts and human-approved scoped coaching rules with review/revert. |
+
+## Disclosures (catalog rule 13)
+
+**Installed plugin:** no network, model calls, shell execution, credentials or background processes. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic retention or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
+
+**Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command and one bounded prompt section; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced.
+
+**Opt-in demo:** reads the supplied Hermes source and local repository; copies only runtime plugin files into an empty lab home; writes config, boards, worker data, artifacts and transcripts. Starts bounded local subprocesses and, in fake mode, a loopback HTTP server. The supplied Python audit-hook checks apply to the in-process harness only. Subprocesses, native network and native file access are outside those checks. This is not an OS sandbox; run the demo in a throwaway home outside any repository. See [demo limits](demo/README.md). Real mode sends task/context data to the explicitly selected provider and can incur its charges. Only the named environment credential is forwarded; its value is redacted from transcripts and never written to config. The adapter uses additional private core Python entrypoints; it is not installed as plugin runtime.
+
+The [catalog draft](catalog/precedent-log.yaml) contains the required post-push SHA placeholder, the matching version, all five hook names, an explicit command/section inventory, empty tools/middleware/env declarations, and Linux/macOS platform limits. The catalog schema has no command/section capability fields, so their inventory is recorded as YAML comments. No push or catalog submission has been made. The r6 clean-export validation is recorded separately in the delivery report so it can name the final public SHA. Private-helper warnings remain for maintainer review; validation does not decide catalog admission.
+
+## Verification
+
+```sh
+HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
+  "$HERMES_PYTHON" -B tests/run_offline.py
+python3 -B evidence/live-r5/recompute.py --check-readme
+```
+
+All 99 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The r6 result is recorded in [evidence/tests-r6.txt](evidence/tests-r6.txt).
+
+Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
+
+Historical [r5 offline](evidence/tests-r5.txt) and [r4 full-suite](tests/evidence/tests-r4.txt) logs are retained with paths sanitized. To run the network-using suite in a permitted environment, use `"$HERMES_PYTHON" -m unittest discover -s tests -v` with the same `HERMES_SOURCE`.
+
+Tests use isolated temporary homes and keep Hermes source unchanged. r6 makes no deployment, push, gateway launch, provider call or existing lab-home install. [Held-out matcher results](tests/evidence/heldout-r3.json) are unchanged. The `public` branch contains a single root commit; historical private commits remain only on `main`. The catalog SHA stays `<FULL_SHA_AFTER_PUSH>`.
