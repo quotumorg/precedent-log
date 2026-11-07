@@ -1,11 +1,8 @@
 name: precedent-log
-version: "0.4.0"
+version: "0.4.1"
 description: >-
-  Human rulings for Kanban workers. Registers pre_tool_call (gate and store
-  guard), kanban_task_blocked (observer), pre_verify (edited-code continuation),
-  post_tool_call and on_session_end (continuation state), slash commands ruling and rulings,
-  CLI command precedent, system prompt section precedent-log.board, and a read-only
-  Desktop status item and Rulings page with confirmed human retirement.
+  Saves a human's answer to a blocked Kanban question as a ruling for later workers.
+  Shows rulings and vetoes in Desktop, where you can review and retire rulings.
 author: quotumorg
 license: MIT
 requires_hermes: ">=0.23.0"

@@ -7,7 +7,7 @@ from precedent_log.commands import rulings
 from precedent_log.gate import decide
 from precedent_log.stats import Events
 from precedent_log.store import Store
-from precedent_log.status import HEADER, EVENT_BYTES, EVENT_LINE_BYTES, STORE_BYTES
+from precedent_log.status import HEADER, EVENT_BYTES, EVENT_LINE_BYTES, STORE_BYTES, short_title
 
 
 class StatusTests(IsolatedTest):
@@ -15,7 +15,7 @@ class StatusTests(IsolatedTest):
         return Store('default').add(question, 'Use staging.', ['schema', 'migrations'])
 
     def test_missing_store_and_invalid_board_hide_without_writes(self):
-        self.assertEqual(rulings('status'), 'Precedent Log status unavailable')
+        self.assertEqual(rulings('status'), HEADER + '\nrulings=0; no veto yet')
         self.assertFalse((self.home / 'precedent-log').exists())
         with patch('precedent_log.status.call_board', side_effect=ValueError):
             self.assertEqual(rulings('status'), 'Precedent Log status unavailable')
@@ -100,4 +100,38 @@ class StatusTests(IsolatedTest):
         with patch('precedent_log.status.call_board', return_value='other'):
             self.assertEqual(rulings('status'), HEADER + '\nrulings=1; no veto yet')
         with patch('precedent_log.store.home', return_value=self.home / 'empty-profile'):
+            self.assertEqual(rulings('status'), HEADER + '\nrulings=0; no veto yet')
+
+    def test_word_boundary_titles(self):
+        for question, expected in [
+            ('staging or prod DB for the schema migration?', 'staging or prod DB for the schema…'),
+            ('which httpx version for the dependency upgrade?', 'which httpx version for the dependency…'),
+            ('a' * 40, 'a' * 40), ('a' * 41, '…'),
+            ('a' * 39 + ' next word', 'a' * 39 + '…'),
+            ('short;\nquestion', 'short question'),
+        ]:
+            self.assertEqual(short_title(question), expected)
+            self.assertLessEqual(len(short_title(question)), 40)
+
+    def test_missing_event_and_policy_files_are_optional_and_read_only(self):
+        self.saved()
+        root = self.home / 'precedent-log'
+        self.assertFalse(Events('default').path.exists())
+        self.assertFalse((root / 'default.policy.json').exists())
+        before = {p.name: p.read_bytes() for p in root.iterdir()}
+        self.assertEqual(rulings('status'), HEADER + '\nrulings=1; no veto yet')
+        self.assertEqual(before, {p.name: p.read_bytes() for p in root.iterdir()})
+        with patch('precedent_log.status.bounded_read', side_effect=PermissionError):
             self.assertEqual(rulings('status'), 'Precedent Log status unavailable')
+
+    def test_broken_links_remain_unavailable(self):
+        self.saved()
+        store = Store('default')
+        for path in [store.path, Events('default').path, store.path.with_name('default.policy.json')]:
+            original = path.read_bytes() if path.exists() else None
+            path.unlink(missing_ok=True)
+            path.symlink_to(self.home / 'missing')
+            self.assertEqual(rulings('status'), 'Precedent Log status unavailable')
+            path.unlink()
+            if original is not None:
+                path.write_bytes(original)

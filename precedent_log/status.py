@@ -37,10 +37,23 @@ def bounded_read(path, limit, tail=False):
         return (raw.split(b'\n', 1)[-1] if start else raw), bool(start)
 
 
+def short_title(question):
+    title = ''.join(c if c != ';' and not unicodedata.category(c).startswith('C') else ' '
+                    for c in question)
+    title = ' '.join(title.split())
+    if len(title) <= TITLE_CHARS:
+        return title
+    # Keep whole words and reserve space for the ellipsis. A single overlong
+    # word has no safe boundary within the cap, so only the ellipsis fits.
+    prefix = title[:TITLE_CHARS]
+    return prefix.rsplit(' ', 1)[0].rstrip() + '…' if ' ' in prefix else '…'
+
+
 def last_veto(events, entries):
-    if not events.path.exists() and not events.path.is_symlink():
+    try:
+        raw, truncated = bounded_read(events.path, EVENT_BYTES, tail=True)
+    except FileNotFoundError:
         return None
-    raw, truncated = bounded_read(events.path, EVENT_BYTES, tail=True)
     for line in reversed(raw.splitlines()):
         if len(line) > EVENT_LINE_BYTES:
             raise ValueError('oversize event')
@@ -57,9 +70,7 @@ def last_veto(events, entries):
         # One representative ruling when the issued veto named several candidates.
         rid = ids[0]
         question = entries[rid]['question']
-        title = ''.join(c if c != ';' and not unicodedata.category(c).startswith('C') else ' '
-                        for c in question)
-        title = ' '.join(title.split())[:TITLE_CHARS].strip()
+        title = short_title(question)
         if not title:
             raise ValueError('empty title')
         stamp = row.get('created_at')
@@ -99,7 +110,10 @@ def capped_rulings(store):
 def status():
     try:
         store = Store(call_board())
-        raw, _ = bounded_read(store.path, STORE_BYTES)
+        try:
+            raw, _ = bounded_read(store.path, STORE_BYTES)
+        except FileNotFoundError:
+            raw = b''
         state = store._read(raw)
         if state.warning or len(state.active) > 999999999:
             raise ValueError('rulings unavailable')

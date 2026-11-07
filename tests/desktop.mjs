@@ -15,8 +15,8 @@ const encode = data => 'precedent-log rulings v1\n' + JSON.stringify(data)
 const sessionOutput = encode(snapshot)
 const source = await readFile(new URL('../desktop/plugin.js', import.meta.url), 'utf8')
 const transformed = source.replace(
-  "import { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA } from '@hermes/plugin-sdk'",
-  'const { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA } = globalThis.precedentSDK',
+  "import { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA, Button, Badge, EmptyState } from '@hermes/plugin-sdk'",
+  'const { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA, Button, Badge, EmptyState } = globalThis.precedentSDK',
 ).replace("import { createElement as h, useSyncExternalStore } from 'react'", 'const { h, useSyncExternalStore } = globalThis.precedentSDK')
 const atom = (initial) => {
   let value = initial
@@ -48,7 +48,10 @@ const host = {
   request: async () => ({ type: 'exec', output: sessionOutput }),
 }
 globalThis.precedentSDK = { host, STATUSBAR_AREAS: { right: 'statusBar.right' }, ROUTES_AREA: 'routes', SIDEBAR_NAV_AREA: 'nav',
-  h: (tag, props, ...children) => typeof tag === 'function' ? tag(props) : ({ tag, props: props || {}, children: children.flat().filter(x => x !== null) }),
+  Button: props => ({ tag: 'button', props, children: props.children }),
+  Badge: props => ({ tag: 'span', props: { ...props, 'data-slot': 'badge' }, children: props.children }),
+  EmptyState: props => ({ tag: 'div', props, children: [props.title, props.description] }),
+  h: (tag, props, ...children) => typeof tag === 'function' ? tag({ ...props, children: children.flat().filter(x => x !== null) }) : ({ tag, props: props || {}, children: children.flat().filter(x => x !== null) }),
   useSyncExternalStore: (_, get) => get(),
 }
 const plugin = (await import('data:text/javascript;base64,' + Buffer.from(transformed).toString('base64'))).default
@@ -84,9 +87,15 @@ const click = label => {
 }
 assert.equal(contributions.get('rulings-page').area, 'routes')
 assert.equal(contributions.get('rulings-nav').data.label, 'Rulings')
-assert.match(dump(page()), /No board in focus/)
+assert.match(dump(page()), /Open any session to load rulings for its profile/)
 console.log('PAGE: ' + dump(page()))
 assert.equal(chip, null)
+let noSessionRequests = 0
+const initialRequest = host.request
+host.request = async () => { noSessionRequests++; return { type: 'exec', output: sessionOutput } }
+await timer()
+assert.equal(noSessionRequests, 0)
+host.request = initialRequest
 host.state.focusedSessionId.set('session-a')
 await settle()
 assert.equal(chip.data.label, 'Precedent Log · 3 rulings · last veto: P-1 schema migrations, 2 min ago')
@@ -99,6 +108,32 @@ assert.match(dump(page()), /P-1 schema migrations/)
 assert.match(dump(page()), /Use staging./)
 assert.match(dump(page()), /job-1/)
 console.log('PAGE: ' + dump(page()))
+// Full questions wrap on the page; the status retains its independently bounded title.
+const longQuestion = 'Which database should we use for the schema migration in the local plan?'
+for (const n of [0, 1, 2]) {
+  const row = { ...snapshot.rows[0], title: longQuestion, cited_count: n, jobs: n ? ['job-1'] : [], veto_count: n }
+  host.request = async () => ({ type: 'exec', output: encode({ ...snapshot, active: n, rows: [row] }) })
+  await timer()
+  assert.ok(dump(page()).includes(longQuestion))
+  assert.ok(dump(page()).includes(`cited by ${n} completed ${n === 1 ? 'job' : 'jobs'}`))
+  assert.ok(dump(page()).includes(`Completed ${n === 1 ? 'job' : 'jobs'} (`))
+  assert.ok(chip.data.label.includes(`${n} ${n === 1 ? 'ruling' : 'rulings'} ·`))
+  assert.ok(nodes(page()).some(x => x.props['data-slot'] === 'badge' && x.props.variant === 'success'))
+  const retireButton = nodes(page()).find(x => x.tag === 'button' && dump(x) === 'Retire P-1')
+  assert.equal(retireButton.props.variant, 'destructive')
+  assert.equal(nodes(page()).find(x => x.tag === 'button' && dump(x) === 'Refresh').props.variant, 'secondary')
+  console.log(chip.data.label)
+}
+host.request = async () => ({ type: 'exec', output: encode({ ...snapshot,
+  rows: [{ ...snapshot.rows[0], title: 'x'.repeat(2000) }],
+  last_veto: { ...snapshot.last_veto, at: '2026-11-06T12:00:00Z' },
+}) })
+await timer()
+assert.ok(dump(page()).includes('x'.repeat(2000)))
+assert.ok(chip.data.label.endsWith('1 day ago'))
+assert.ok(nodes(page()).some(x => x.tag === 'article' && x.props.style.overflowWrap === 'anywhere'))
+host.request = async () => ({ type: 'exec', output: sessionOutput })
+await timer()
 const initialChip = chip
 const initialRegistrations = registrations
 await timer()
@@ -120,6 +155,8 @@ host.request = async () => ({ type: 'exec', output: encode({ state: 'empty', boa
 await timer()
 assert.match(dump(page()), /No rulings yet/)
 console.log('PAGE: ' + dump(page()))
+assert.equal(chip.data.label, 'Precedent Log · 0 rulings · no veto yet')
+console.log(chip.data.label)
 // Missing state is not a fabricated zero.
 host.request = async () => ({ type: 'exec', output: 'Precedent Log status unavailable' })
 await timer()
@@ -142,6 +179,10 @@ writes.length = 0
 click('Retire P-1')
 assert.equal(writes.length, 0)
 assert.match(dump(page()), /Confirm retire P-1/)
+const confirmation = nodes(page()).find(x => x.props['aria-label'] === 'Confirm retirement of P-1')
+assert.equal(confirmation.props.style.gap, 12)
+assert.ok(confirmation.children.some(x => x.props?.style?.gap === 8))
+assert.equal(nodes(confirmation).find(x => x.tag === 'button' && dump(x) === 'Confirm retire P-1').props.variant, 'destructive')
 click('Cancel')
 assert.equal(writes.length, 0)
 click('Retire P-1')
@@ -150,6 +191,7 @@ assert.ok(!dump(page()).includes('Use staging.'))
 await settle()
 assert.deepEqual(writes, ['/ruling retire P-1 Retired from Desktop --board default', '/rulings list --json'])
 assert.match(dump(page()), /retired/)
+assert.ok(nodes(page()).some(x => x.props['data-slot'] === 'badge' && x.props.variant === 'muted'))
 assert.ok(!nodes(page()).some(n => n.tag === 'button' && dump(n) === 'Retire P-1'))
 // A backend error remains visible; the subsequent read remains authoritative.
 host.request = async (_, params) => ({ type: 'exec', output: params.command.startsWith('/ruling retire')
@@ -229,7 +271,7 @@ await settle()
 // Only bounded output with the protocol header may render.
 for (const output of ['header\n' + sessionOutput.split('\n')[1],
   sessionOutput + 'x'.repeat(65536), encode({ ...snapshot, active: -1 }),
-  encode({ ...snapshot, rows: [{ ...snapshot.rows[0], title: 'x'.repeat(41) }] }),
+  encode({ ...snapshot, rows: [{ ...snapshot.rows[0], title: 'x'.repeat(2001) }] }),
   sessionOutput.replaceAll('2026-11-07', '2026-02-31'),
   sessionOutput.replaceAll('12:00:00', '12:59:00'),
   encode({ ...snapshot, rows: Array(51).fill(snapshot.rows[0]) }),

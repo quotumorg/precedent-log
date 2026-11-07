@@ -90,7 +90,7 @@ class DesktopTests(IsolatedTest):
         self.assertEqual(len(row['ruling']), 2000)
         self.assertEqual(len(row['jobs']), 20)
         self.assertEqual(row['cited_count'], 25)
-        self.assertEqual(len(row['title']), 40)
+        self.assertEqual(len(row['title']), 100)
 
     def test_bad_oversize_torn_symlink_history_is_unavailable(self):
         self.saved()
@@ -130,3 +130,40 @@ class DesktopTests(IsolatedTest):
         self.assertEqual(decide(args)['action'], 'modify')
         (self.home / 'precedent-log/default.policy.json').write_text('{}')
         self.assertEqual(self.snapshot()['state'], 'unavailable')
+
+    def test_full_question_and_optional_files(self):
+        question = 'which httpx version for the dependency upgrade in this project?'
+        Store('default').add(question, 'Use the pinned version.')
+        root = self.home / 'precedent-log'
+        before = {p.name: p.read_bytes() for p in root.iterdir()}
+        row = self.snapshot()['rows'][0]
+        self.assertEqual(row['title'], question)
+        self.assertEqual((row['cited_count'], row['veto_count'], row['last_veto'], row['cap_reached']), (0, 0, None, False))
+        self.assertEqual(before, {p.name: p.read_bytes() for p in root.iterdir()})
+        Events('default').record('veto', 'job', ['P-1'])
+        self.assertEqual(self.snapshot()['last_veto']['title'], 'which httpx version for the dependency…')
+        from precedent_log.store import Snapshot
+        with patch.object(Store, '_read', return_value=Snapshot(entries={'P-1': {
+                'id': 'P-1', 'question': 'x' * 3000, 'ruling': 'Use staging.'}})):
+            self.assertEqual(len(self.snapshot()['rows'][0]['title']), 2000)
+
+    def test_retire_slash_and_cli_grammar(self):
+        import argparse
+        import contextlib
+        import io
+        from precedent_log.commands import cli, setup_cli
+        parser = argparse.ArgumentParser()
+        setup_cli(parser)
+        for n in (0, 1, 2):
+            for surface in ('slash', 'cli'):
+                row = self.saved()
+                for j in range(n):
+                    Events('default').record('relied', f'job-{j}', [row['id']])
+                if surface == 'slash':
+                    result = ruling(f"retire {row['id']} obsolete --board default")
+                else:
+                    output = io.StringIO()
+                    with contextlib.redirect_stdout(output):
+                        cli(parser.parse_args(['retire', row['id'], '--reason', 'obsolete', '--board', 'default']))
+                    result = output.getvalue()
+                self.assertIn(f"{n} completed {'job' if n == 1 else 'jobs'} cited it", result)

@@ -1,12 +1,12 @@
 name: precedent-log
 repo: https://github.com/quotumorg/precedent-log
 sha: <FULL_SHA_AFTER_PUSH>
-description: Saved board rulings in worker prompts, with a syntactic block check and a read-only Desktop status item.
+description: "Saves a human's answer to a blocked Kanban question as a ruling for later workers. Shows rulings and vetoes in Desktop, where you can review and retire rulings."
 maintainer: quotumorg
 tier: community
 category: memory
 requires_hermes: ">=0.23.0"
-version: "0.3.0"
+version: "0.4.1"
 readme: true
 platforms: [linux, macos]
 known_issues:
@@ -27,6 +27,6 @@ capabilities:
 # Catalog v0.23.0 has no commands or prompt-sections capability keys.
 # Exact additional registrations: slash ruling, rulings; CLI precedent;
 # system prompt section precedent-log.board (after_memory, max_chars=4000).
-# Desktop: native status-bar item, host-routed read-only slash.exec polling; no model calls.
+# Desktop: status item and Rulings page; host-routed reads and confirmed retirement; no model calls.
 # This is a draft. Replace the SHA placeholder with the full pushed commit;
 # the catalog loader intentionally rejects this placeholder.

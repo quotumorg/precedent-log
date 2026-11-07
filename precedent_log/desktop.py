@@ -4,7 +4,7 @@ import json
 import re
 
 from .stats import Events
-from .status import bounded_read, STORE_BYTES, EVENT_LINE_BYTES, STATUS_ID, capped_rulings
+from .status import bounded_read, STORE_BYTES, EVENT_LINE_BYTES, STATUS_ID, capped_rulings, short_title
 from .store import Store, call_board
 
 HEADER = 'precedent-log rulings v1'
@@ -68,7 +68,7 @@ def snapshot():
                     metrics[rid]['veto_count'] += 1
                     metrics[rid]['last_veto'] = max(metrics[rid]['last_veto'] or stamp, stamp)
             if event['event'] == 'veto' and (latest is None or stamp >= latest['at']):
-                latest = {'id': ids[0], 'title': clean(state.entries[ids[0]]['question'], 40), 'at': stamp}
+                latest = {'id': ids[0], 'title': short_title(state.entries[ids[0]]['question']), 'at': stamp}
         capped = capped_rulings(store)
         data = {'state': 'ready' if state.entries else 'empty', 'board': board,
                 'active': len(state.active), 'total': len(state.entries), 'rows': [], 'last_veto': latest,
@@ -78,7 +78,7 @@ def snapshot():
                 raise ValueError('invalid id')
             metric = metrics[rid]
             jobs = sorted(metric['jobs'])
-            row = {'id': rid, 'title': clean(entry['question'], 40),
+            row = {'id': rid, 'title': clean(entry['question'], 2000),
                    'keys': [clean(key, 80) for key in entry.get('keys', [])[:20]],
                    'status': 'retired' if entry.get('retired') else 'active',
                    'ruling': entry['ruling'][:2000], 'jobs': jobs[:MAX_JOBS], 'cited_count': len(jobs),

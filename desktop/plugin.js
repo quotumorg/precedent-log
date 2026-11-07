@@ -1,4 +1,4 @@
-import { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA } from '@hermes/plugin-sdk'
+import { host, STATUSBAR_AREAS, ROUTES_AREA, SIDEBAR_NAV_AREA, Button, Badge, EmptyState } from '@hermes/plugin-sdk'
 import { createElement as h, useSyncExternalStore } from 'react'
 
 // SDK runtime.ts:63-66 supplies the host React singleton; no bundled dependency.
@@ -8,13 +8,14 @@ const LIMIT = 64 * 1024
 const idPattern = /^P-[1-9][0-9]{0,8}$/
 const boardPattern = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const text = (s, limit) => typeof s === 'string' && s.length <= limit && !/[\x00-\x08\x0b-\x1f\x7f-\x9f]/u.test(s)
+const plural = (n, singular, many = singular + 's') => n === 1 ? singular : many
 const count = n => Number.isSafeInteger(n) && n >= 0
 const stamp = s => typeof s === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(s)
   && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().replace('.000Z', 'Z') === s && Date.parse(s) <= Date.now()
 const age = s => {
   const seconds = Math.floor((Date.now() - Date.parse(s)) / 1000)
   return seconds < 60 ? 'just now' : seconds < 3600 ? `${Math.floor(seconds / 60)} min ago`
-    : seconds < 86400 ? `${Math.floor(seconds / 3600)} hr ago` : `${Math.floor(seconds / 86400)} days ago`
+    : seconds < 86400 ? `${Math.floor(seconds / 3600)} hr ago` : `${Math.floor(seconds / 86400)} ${plural(Math.floor(seconds / 86400), 'day')} ago`
 }
 function parse(result) {
   const output = result?.type === 'exec' ? result.output : null
@@ -30,7 +31,7 @@ function parse(result) {
   const ids = new Set()
   for (const row of data.rows) {
     if (!row || typeof row.id !== 'string' || !idPattern.test(row.id) || ids.has(row.id)
-        || !text(row.title, 40) || !text(row.ruling, 2000) || !['active', 'retired'].includes(row.status)
+        || !text(row.title, 2000) || !text(row.ruling, 2000) || !['active', 'retired'].includes(row.status)
         || !Array.isArray(row.keys) || row.keys.length > 20 || row.keys.some(k => !text(k, 80))
         || !Array.isArray(row.jobs) || row.jobs.length > 20 || row.jobs.some(j => typeof j !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(j))
         || typeof row.cap_reached !== 'boolean' || !count(row.cited_count) || row.cited_count < row.jobs.length || !count(row.veto_count)
@@ -62,10 +63,11 @@ export default {
       publish({ state, error, confirm: null, busy: false })
     }
     const chip = data => {
-      if (data.state !== 'ready') { clearChip(); return }
+      if (!['ready', 'empty'].includes(data.state)) { clearChip(); return }
       const veto = data.last_veto
       const last = veto ? `last veto: ${veto.id} ${veto.title}, ${age(veto.at)}` : 'no veto yet'
-      const line = `Precedent Log · ${data.active} rulings · ${last}${data.cap_reached ? ' · veto cap reached' : ''}`
+      const active = data.state === 'empty' ? 0 : data.active
+      const line = `Precedent Log · ${active} ${plural(active, 'ruling')} · ${last}${data.cap_reached ? ' · veto cap reached' : ''}`
       if (line === displayedLine) return
       clearChip()
       disposeChip = ctx.register({ id: 'precedent-status', area: STATUSBAR_AREAS.right, order: 130,
@@ -133,34 +135,49 @@ export default {
     }
     function Page() {
       const view = useSyncExternalStore(fn => { listeners.add(fn); return () => listeners.delete(fn) }, () => model)
-      const button = (label, onClick, disabled = false) => h('button', { type: 'button', onClick, disabled,
-        style: { padding: '6px 12px', border: '1px solid var(--ui-border)', borderRadius: 4, cursor: 'pointer' } }, label)
-      const states = { 'no-board': 'No board in focus', empty: 'No rulings yet', unavailable: 'Unavailable' }
+      // SDK index.ts:1696-1697,1741 exports host-styled primitives.
+      const button = (label, onClick, disabled = false, variant = 'secondary') => h(Button,
+        { type: 'button', onClick, disabled, variant, size: 'sm' }, label)
+      const meta = { color: 'var(--ui-text-secondary)', fontSize: 13, lineHeight: 1.6, margin: 0 }
+      const states = {
+        'no-board': ['Open any session to load rulings for its profile', 'Then return to Rulings from the sidebar.'],
+        empty: ['No rulings yet', 'Save a human answer with /ruling add in a session for this profile.'],
+        unavailable: ['Unavailable', 'Check the gateway connection, then refresh.'],
+      }
       return h('section', { style: { padding: 24, overflow: 'auto', height: '100%', color: 'var(--ui-text-primary)', fontFamily: 'inherit' }, 'aria-label': 'Rulings' },
-        h('h1', { style: { fontSize: 24, marginBottom: 8 } }, 'Rulings'),
-        h('p', null, view.board ? `Board ${view.board}. Completed-job citations and recorded vetoes.` : 'Focused profile and current board.'),
-        view.error ? h('p', { role: 'alert' }, view.error) : null,
-        view.state !== 'ready' ? h('p', { role: 'status' }, states[view.state]) : null,
-        view.busy ? h('p', { role: 'status' }, 'Retiring; re-reading the store…') : null,
-        button('Refresh', () => { void refresh() }, view.busy),
-        view.cap_reached ? h('p', { role: 'status' }, 'veto cap reached (recorded for a task on this board)') : null,
-        view.truncated ? h('p', null, `Showing ${view.rows.length} of ${view.total} rulings. Text is limited to 2,000 characters; job lists to 20 IDs.`) : null,
-        ...(view.rows || []).map(row => h('article', { key: row.id, style: { borderTop: '1px solid var(--ui-border)', padding: '16px 0', overflowWrap: 'anywhere' } },
-          h('h2', { style: { fontSize: 18 } }, `${row.id} ${row.title}`),
-          h('p', null, `${row.status} · keys: ${row.keys.join(', ') || '(none)'} · cited by ${row.cited_count} completed jobs`),
-          h('p', null, `Vetoes: ${row.veto_count} · last veto: ${row.last_veto ? age(row.last_veto) : 'none'}`),
-          row.cap_reached ? h('p', null, 'veto cap reached') : null,
-          h('details', null, h('summary', null, 'Ruling and cited jobs'),
-            h('p', { style: { whiteSpace: 'pre-wrap' } }, row.ruling),
-            h('p', null, `Completed jobs (${row.jobs.length}/${row.cited_count} shown): ${row.jobs.join(', ') || '(none)'}`),
-            h('small', null, 'Ruling text limited to 2,000 characters; job list limited to 20 IDs.')),
-          row.status === 'active' ? button(`Retire ${row.id}`, () => {
-            if (model.state === 'ready') publish({ ...model, confirm: { id: row.id, board: view.board, key: scope() }, error: '' })
-          }) : null,
-          view.confirm?.id === row.id ? h('div', { role: 'group', 'aria-label': `Confirm retirement of ${row.id}` },
-            h('p', null, `Retire ${row.id} on board ${view.board}? It will stop being offered to new workers. Existing jobs stay unchanged.`),
-            button(`Confirm retire ${row.id}`, confirmRetire),
-            button('Cancel', () => publish({ ...model, confirm: null }))) : null)))
+        h('div', { style: { maxWidth: 960, margin: '0 auto' } },
+          h('header', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, justifyContent: 'space-between', marginBottom: 24 } },
+            h('div', null,
+              h('h1', { style: { fontSize: 24, fontWeight: 600, margin: '0 0 6px' } }, 'Rulings'),
+              h('p', { style: meta }, view.board ? `Board ${view.board}. Completed-job citations and recorded vetoes.` : 'Focused profile and current board.')),
+            button('Refresh', () => { void refresh() }, view.busy)),
+          view.error ? h('p', { role: 'alert', style: { ...meta, color: 'var(--destructive)', marginBottom: 16 } }, view.error) : null,
+          view.busy ? h('p', { role: 'status' }, 'Retiring; re-reading the store…')
+            : view.state !== 'ready' ? h('div', { role: 'status' }, h(EmptyState, {
+              title: states[view.state][0], description: states[view.state][1],
+            })) : null,
+          view.cap_reached ? h('p', { role: 'status', style: meta }, 'veto cap reached (recorded for a task on this board)') : null,
+          view.truncated ? h('p', { style: meta }, `Showing ${view.rows.length} of ${view.total} ${plural(view.total, 'ruling')}. Text is limited to 2,000 characters; job lists to 20 IDs.`) : null,
+          ...(view.rows || []).map(row => h('article', { key: row.id, style: { borderTop: '1px solid var(--ui-stroke-secondary)', padding: '20px 0', overflowWrap: 'anywhere', display: 'grid', gap: 12 } },
+            h('div', { style: { display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' } },
+              h('h2', { style: { fontSize: 18, fontWeight: 500, lineHeight: 1.5, margin: 0, minWidth: 0, flex: '1 1 280px' } }, `${row.id} ${row.title}`),
+              h(Badge, { variant: row.status === 'active' ? 'success' : 'muted' }, row.status)),
+            h('div', { style: meta },
+              h('p', { style: { margin: 0 } }, `keys: ${row.keys.join(', ') || '(none)'} · cited by ${row.cited_count} completed ${plural(row.cited_count, 'job')}`),
+              h('p', { style: { margin: 0 } }, `${plural(row.veto_count, 'Veto', 'Vetoes')}: ${row.veto_count} · last veto: ${row.last_veto ? age(row.last_veto) : 'none'}`)),
+            row.cap_reached ? h('p', { style: meta }, 'veto cap reached') : null,
+            h('details', null, h('summary', { style: { cursor: 'pointer' } }, 'Ruling and cited jobs'),
+              h('p', { style: { whiteSpace: 'pre-wrap', margin: '12px 0', lineHeight: 1.6 } }, row.ruling),
+              h('p', { style: meta }, `Completed ${plural(row.cited_count, 'job')} (${row.jobs.length}/${row.cited_count} shown): ${row.jobs.join(', ') || '(none)'}`),
+              h('p', { style: meta }, 'Question and ruling text limited to 2,000 characters; job list limited to 20 IDs.')),
+            row.status === 'active' && view.confirm?.id !== row.id ? h('div', null, button(`Retire ${row.id}`, () => {
+              if (model.state === 'ready') publish({ ...model, confirm: { id: row.id, board: view.board, key: scope() }, error: '' })
+            }, view.busy, 'destructive')) : null,
+            view.confirm?.id === row.id ? h('div', { role: 'group', 'aria-label': `Confirm retirement of ${row.id}`, style: { display: 'grid', gap: 12, padding: 16, background: 'var(--ui-bg-quaternary)', borderRadius: 4 } },
+              h('p', { style: { margin: 0, lineHeight: 1.6 } }, `Retire ${row.id} on board ${view.board}? It will stop being offered to new workers. Existing jobs stay unchanged.`),
+              h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+                button(`Confirm retire ${row.id}`, confirmRetire, view.busy, 'destructive'),
+                button('Cancel', () => publish({ ...model, confirm: null }), view.busy))) : null))))
     }
     ctx.register({ id: 'rulings-page', title: 'Rulings', area: ROUTES_AREA, data: { path: PATH }, render: () => h(Page) })
     ctx.register({ id: 'rulings-nav', area: SIDEBAR_NAV_AREA, order: 55,
