@@ -223,11 +223,11 @@ with kbc.connect_closing() as conn:
     first = json.loads(handle_function_call('kanban_block', args, **ids))
     assert 'candidate rulings' in first['error'], first
     assert kb.get_task(conn, tid).status == 'running'
-    args['reason'] += '; per precedent P-1, prod needs human approval'
+    args['reason'] += '; no precedent applies: P-1 chooses targets, production approval still needs a human.'
     result = json.loads(handle_function_call('kanban_block', args, **ids))
     assert result.get('ok') and result['block_kind'] == 'needs_input', result
     assert kb.get_task(conn, tid).status == 'blocked'
-    assert '[precedent-log] syntactic citation marker; checked active matching P-1' in kb.latest_run(conn, tid).summary
+    assert '[precedent-log] considered candidates P-1; syntactic explanation marker present' in kb.latest_run(conn, tid).summary
     # Observer runs through the loaded plugin and reads public event payloads.
     rows = [json.loads(line) for line in (Store().directory / 'default.events.jsonl').read_text().splitlines()]
     assert rows[-1]['event'] == 'blocked' and rows[-1]['kind'] == 'needs_input', rows[-1]
@@ -260,7 +260,7 @@ print('Actual loaded dependency gate + committed events: no parent -> gated need
                     directive = pre_tool_call('kanban_block', args, ctx=ctx)
                     self.assertIn('P-1: Use release DB, never staging', directive['message'])
                     self.assertEqual(call_board(args.get('board')), 'release')
-                    args['reason'] += ' per precedent P-1'
+                    args['reason'] += ' no precedent applies: P-1 chooses targets, this asks who owns rollback.'
                     directive = pre_tool_call('kanban_block', args, ctx=ctx)
                     result = json.loads(ctx.dispatch_tool('kanban_block', directive['args']))
                     self.assertTrue(result['ok'], result)
@@ -276,7 +276,7 @@ print('Actual loaded dependency gate + committed events: no parent -> gated need
                 args = {'board':'release', 'reason':QUESTION, 'kind':'needs_input'}
                 directive = pre_tool_call('kanban_block', args, ctx=ctx)
                 self.assertIn('P-1: Use staging', directive['message'])
-                args['reason'] += ' per precedent P-1'
+                args['reason'] += ' no precedent applies: P-1 chooses targets, this asks who owns rollback.'
                 directive = pre_tool_call('kanban_block', args, ctx=ctx)
                 result = json.loads(ctx.dispatch_tool('kanban_block', directive['args']))
                 self.assertTrue(result['ok'], result)

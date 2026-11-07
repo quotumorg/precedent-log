@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 128 passing](https://img.shields.io/badge/offline_tests-128_passing-2b2a6b)](evidence/tests-r11.txt)
+[![offline tests: 136 passing](https://img.shields.io/badge/offline_tests-136_passing-2b2a6b)](evidence/tests-r12.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -80,7 +80,7 @@ When finished with the trial, use `hermes precedent retire P-1 --board default -
 
 ## Safety and scope
 
-Active rulings for the current profile and board appear in the worker's system prompt. When a worker tries to ask a human with `kanban_block`, the backstop checks citation/explanation text markers and can refuse that block up to twice (a veto). It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
+Active rulings for the current profile and board appear in the worker's system prompt. When a worker tries to ask a human with `kanban_block`, the backstop checks matching rulings and explanation text and can refuse that block up to twice (a veto), even when the reason cites the answer. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
 
 `precedent_log.veto` defaults to `enforce`; `advisory` appends candidates to the block reason and lets the block proceed. In enforce mode, a worker that made no file edits can stop with its card still running (the B2 test case); recovery depends on core dead-worker recovery and retry settings, with no promised deadline. Advisory avoids this veto path.
 
@@ -97,7 +97,7 @@ Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf
 | Ruling | A saved answer to a decision, such as P-1, scoped to one profile and board. |
 | Profile / board | The Hermes home that stores the ruling / the Kanban board whose workers receive it. Both must match. |
 | Candidate | A ruling the word-based matcher suggests for a worker's question. It may be wrong. |
-| Veto / enforce | Refuse a worker's attempted block and ask it to cite a candidate or explain why none applies. At most twice per task/board. |
+| Veto / enforce | Refuse a worker's attempted block, including one citing a matching answer; ask it to follow the ruling and cite completion, or explain what is not covered. At most twice per task/board. |
 | Advisory | Show matching candidates while allowing the block to proceed. |
 | Syntactic marker | Recognizable text such as `per precedent P-1`, checked by words and IDs, not meaning. |
 | B2 | The test case where a worker makes no edits, stops after a veto and leaves its card running. |
@@ -127,6 +127,8 @@ hermes precedent stats --board release
 
 `cited-by P-1` lists recorded task IDs, event kinds and times on this board, including retired rulings. A successful worker `kanban_complete` summary with a word-bounded active ruling ID records `relied`; block-time `citation` events also appear. These are syntactic markers, not proof of correct application. Retirement reports distinct completed jobs from `relied` events for human review. `--replaced-by P-2` requires an active ruling on this board and stores the link with the reason, visible in `show`.
 
+In enforce mode, citing an active matching ruling or quoting its normalized sentence in `kanban_block` still vetoes the re-ask: follow it and cite completion, or use `no precedent applies:` naming every candidate and what it does not cover. Vetoed citations remain `citation` events with the veto flag, visible in `cited-by`, and are neither `relied` nor counted as passed citations.
+
 Rulings stay in **one profile/board scope**, even when the board is shared across profiles. Use the worker's profile. Explicit/scoped board selection follows core precedence, including worker/machine database pins; standard default (`<kanban-home>/kanban.db`) and named-board physical paths win over a stale board marker. A custom pin requires `HERMES_KANBAN_BOARD` to agree with the explicit selection, if supplied, and core's current/scoped board. Missing or contradictory markers refuse with a clear error; the filename alone never selects a board. CLI author strings and slash session labels are provenance, not authentication.
 
 [`section.render`](precedent_log/section.py) starts with: "Board rulings saved by this profile. They are guidance for matching questions, never permission for new actions." Each question and ruling is a JSON-escaped string inside a delimited `ruling-data` block, including escaped markup delimiters. Matching keys, aliases, authors and source-task metadata are excluded. Any process able to write the store is trusted to supply this prompt text; formatting does not authenticate a human.
@@ -153,7 +155,7 @@ cd precedent-log
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 128 offline tests pass; the [verification](#verification) commands rerun them.
+This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 136 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
@@ -266,11 +268,11 @@ The matcher uses lowercase ASCII words, fixed stopwords and simple trailing-`s` 
 
 ## Limits and failure behavior
 
-The bounded block-time veto checks an active matching ruling's citation marker or a stated reason, not correct application; keyed rulings match only when every key appears in the block reason, while keyless rulings use word overlap.
+In enforce mode, an active matching ruling triggers up to two block-time vetoes without a valid stated exception, even if cited or quoted; matching uses all explicit keys or keyless question overlap (also alias overlap), and checks text rather than correct application.
 Held-out candidate selection was 8/20 correct: 7 repeats found, 3 missed, 9 different decisions shown and 1 correctly excluded (see the [table](#candidate-errors-measured-without-tuning)).
 
 - Checks missing/`needs_input` kinds and `dependency` when public `kanban_show` finds no unsatisfied parent. Lookup failure checks conservatively; parent races and bypassed core paths remain outside the gate.
-- A syntactic citation marker must name an active matching ruling on this board with an intact ID. References inside decorated tokens and requests to ignore a ruling, ask again, disregard or override are treated as uncited. Otherwise `no precedent applies:` needs at least 20 characters, four distinct words after removing IDs/punctuation, and every candidate shown for this task. These remain text checks, not semantic truth: counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
+- A block-time citation must name an active matching ruling on this board with an intact ID, or include a whole ruling sentence normalized for case, punctuation and whitespace while preserving word order; it does not authorize asking the same question again. References inside decorated tokens and requests to ignore a ruling, ask again, disregard or override are treated as uncited. To block with an exception, `no precedent applies:` needs at least 20 characters, four distinct words after removing IDs/punctuation, and every candidate shown for this task. These remain text checks, not semantic truth: counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
 - Two vetoes per task/board, then a visibly warned escalation. Policy counts and candidate IDs survive respawn separately from analytics. Stats count attempts, not distinct questions, human answers or completed jobs.
 - **B2:** public `pre_verify` continuation is available only after edits and below core's nudge cap. No-edit or cap-exhausted workers can exit without changing their running card. The scripted fake-provider local adapter shows requeue/requeue/warned-block with its chosen retry settings. No real-model B2 was run. Recovery relies on core dead-worker recovery and its retry settings; no recovery deadline is claimed. Advisory avoids this veto path. The offline `max_retries=1` test instead parks after the first exit. Default gateway ownership/timeout recovery has no demonstrated wall-time bound here.
 - Marked `execute_code` and process stdin writes are denied conservatively. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
@@ -323,7 +325,7 @@ HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 128 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r11.txt](evidence/tests-r11.txt).
+All 136 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r12.txt](evidence/tests-r12.txt).
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 

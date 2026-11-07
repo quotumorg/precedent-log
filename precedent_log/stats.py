@@ -82,7 +82,7 @@ class Events:
                     "justification": "passes_with_justification", "unmatched": "unmatched_passes",
                     "uncited": "uncited_passes"}
         for row in rows:
-            if row["event"] in counters:
+            if row["event"] in counters and not (row["event"] == "citation" and row.get("veto")):
                 result[counters[row["event"]]] += 1
             if row["event"] == "blocked":
                 if row.get("kind") == "needs_input":

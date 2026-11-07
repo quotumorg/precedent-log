@@ -214,10 +214,10 @@ class ReviewTests(IsolatedTest):
     def test_analytics_failures_annotated_on_every_policy_branch(self):
         with patch.object(Events, 'record', side_effect=OSError('unavailable')):
             self.assertIn('events unavailable', self.gate()['message'])
-            self.assertIn('events unavailable', self.gate(self.reason + ' per precedent P-1')['args']['reason'])
+            self.assertIn('events unavailable', self.gate(self.reason + ' per precedent P-1')['message'])
             self.assertIn('events unavailable', self.gate('no precedent applies: P-1 decides targets, this asks who owns rollback.')['args']['reason'])
             self.assertIn('events unavailable', self.gate('new vendor question', task='unmatched')['args']['reason'])
-            self.assertEqual(self.gate()['action'], 'block')
+            self.assertEqual(self.gate()['action'], 'modify')
             self.assertIn('escalated without citing candidates P-1', self.gate()['args']['reason'])
         # Policy survives respawn even if no analytic event was recorded.
         result = self.process("import json; from precedent_log.gate import pre_tool_call; print(json.dumps(pre_tool_call('kanban_block', {'reason':'staging prod migrations'}, task_id='t_review')))" )

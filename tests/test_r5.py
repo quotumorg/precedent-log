@@ -67,6 +67,10 @@ for board, stale in [('default', 'release'), ('release', 'default')]:
         assert kb.get_task(conn, tid).status == 'running'
         args['reason'] += '; per precedent P-1'
         result = json.loads(handle_function_call('kanban_block', args, session_id='r5', turn_id=board))
+        assert 'The cited ruling already answers this: P-1' in result['error'], result
+        assert kb.get_task(conn, tid).status == 'running'
+        args['reason'] += '; no precedent applies: P-1 covers targets, this asks who owns rollback.'
+        result = json.loads(handle_function_call('kanban_block', args, session_id='r5', turn_id=board))
         assert result.get('ok'), result
         assert kb.get_task(conn, tid).status == 'blocked'
     for key in ('HERMES_KANBAN_DB', 'HERMES_KANBAN_TASK', 'HERMES_KANBAN_RUN_ID'):
@@ -217,11 +221,44 @@ result = json.loads(handle_function_call('kanban_block', {'reason':'staging prod
 assert 'precedent_log.veto must be enforce or advisory' in result['error'], result
 ''', {'precedent_log': {'veto': 'typo'}})
 
+    def test_citing_block_then_completion_keeps_demo_veto_path(self):
+        self.loaded('''
+from precedent_log.stats import Events
+from demo.run import citation_evidence
+Store().add('staging prod migration', 'Use staging for the local migration plan.', ['staging', 'prod'])
+with kbc.connect_closing() as conn:
+    for suffix in ('', '; per precedent P-1', '; "USE STAGING for the local migration plan."'):
+        tid = kb.create_task(conn, title='T2 repeated decision', assignee='worker')
+        claimed = kb.claim_task(conn, tid)
+        os.environ.update(HERMES_KANBAN_TASK=tid, HERMES_KANBAN_RUN_ID=str(claimed.current_run_id))
+        args = {'reason': 'staging or prod for the migration?' + suffix, 'kind': 'needs_input'}
+        result = json.loads(handle_function_call('kanban_block', args, session_id='r12', turn_id=tid))
+        assert 'candidate rulings' in result['error'], result
+        assert kb.get_task(conn, tid).status == 'running'
+        output = home / 'orders-plan.md'
+        output.write_text('Use staging for the local plan, per precedent P-1.')
+        done_args = {'summary': 'per precedent P-1: staging chosen; orders-plan.md written.'}
+        done = json.loads(handle_function_call('kanban_complete', done_args, session_id='r12', turn_id=tid))
+        assert done.get('ok') and kb.get_task(conn, tid).status == 'done', done
+        messages = []
+        for n, (name, arguments, response) in enumerate((('kanban_block', args, result), ('kanban_complete', done_args, done))):
+            call_id = str(n)
+            messages.extend([
+                {'role': 'assistant', 'tool_calls': [{'id': call_id, 'function': {'name': name, 'arguments': json.dumps(arguments)}}]},
+                {'role': 'tool', 'tool_call_id': call_id, 'content': json.dumps(response)}])
+        evidence = citation_evidence([{'task_id': tid, 'worker': {'result': {'messages': messages}}}], output.read_text())
+        assert evidence['citation_found'] and evidence['citation_path'] == 'veto', evidence
+        rows = [row for row in Events().cited_by('P-1') if row['task_id'] == tid]
+        assert [row['event'] for row in rows] == (['citation', 'relied'] if suffix else ['relied']), rows
+        os.environ.pop('HERMES_KANBAN_TASK')
+        os.environ.pop('HERMES_KANBAN_RUN_ID')
+''')
+
     def test_syntactic_citation_cannot_explicitly_ignore_the_ruling(self):
         Store().add('staging prod migration', 'Use staging', ['staging', 'prod'])
         result = pre_tool_call('kanban_block', {'reason': 'staging prod; per precedent P-1: ignore this ruling and ask again'}, task_id='t_syntax')
         self.assertEqual(result['action'], 'block')
-        self.assertIn('Cite an active candidate', result['message'])
+        self.assertIn('Follow an active candidate', result['message'])
 
     def test_syntactic_explanation_cannot_be_id_plus_punctuation(self):
         Store().add('staging prod migration', 'Use staging', ['staging', 'prod'])

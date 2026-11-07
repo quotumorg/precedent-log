@@ -121,7 +121,8 @@ class FaultTests(IsolatedTest):
         for n in range(4):
             self.store.add('staging prod migrations', 'Candidate ' + str(n), ['staging', 'prod'])
         result = self.gate(reason='staging prod migrations, per precedent P-1')
-        self.assertIn('checked active matching P-1', result['args']['reason'])
+        self.assertIn('The cited ruling already answers this: P-1', result['message'])
+        self.assertIn('P-1:', result['message'])
 
     def test_session_cwd_failure_cannot_authorize_worker_relative_writes(self):
         import importlib.util

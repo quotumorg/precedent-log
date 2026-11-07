@@ -40,13 +40,13 @@ class GateTests(IsolatedTest):
 
     def test_citation_active_retired_and_unknown(self):
         result = self.call({**self.args, "reason": self.args["reason"] + " per PRECEDENT p-1"})
-        self.assertIn("checked active matching P-1", result["args"]["reason"])
+        self.assertIn("The cited ruling already answers this: P-1", result["message"])
         self.store.retire("P-1", "No longer needed")
         result = self.call({**self.args, "reason": "Considered precedent P-1 but it is retired"})
         self.assertIn("P-1 is not an active ruling on this board", result["message"])
-        result = self.call({**self.args, "reason": "precedent P-999"})
+        result = self.call({**self.args, "reason": "precedent P-999"}, task="unknown")
         self.assertIn("P-999 is not an active ruling on this board", result["message"])
-        self.assertEqual(Events().summary()["passes_with_citation"], 1)
+        self.assertEqual(Events().summary()["passes_with_citation"], 0)
 
     def test_justification_minimum_is_single_line(self):
         self.assertEqual(self.call()["action"], "block")
@@ -74,11 +74,11 @@ class GateTests(IsolatedTest):
                 self.assertEqual(self.call(args, task=f"malformed{n}")["action"], "block")
         self.assertEqual(Events().summary()["passes_with_citation"], 0)
 
-    def test_standalone_citations_allow_sentence_punctuation(self):
+    def test_standalone_citations_with_sentence_punctuation_veto(self):
         for n, marker in enumerate(("P-1", "p-1.", "P-1: use staging", "P-1, use staging")):
             with self.subTest(marker=marker):
                 result = self.call({**self.args, "reason": "staging prod; per precedent " + marker}, task=f"valid{n}")
-                self.assertIn("checked active matching P-1", result["args"]["reason"])
+                self.assertIn("The cited ruling already answers this: P-1", result["message"])
 
     def test_explanations_require_four_distinct_words_and_every_candidate(self):
         self.store.add("staging prod target", "Use another plan", ["staging", "prod"])
