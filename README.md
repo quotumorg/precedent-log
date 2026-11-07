@@ -140,18 +140,19 @@ The host React singleton needs no build step or added dependencies
 boundary with an ellipsis within 40 characters; the page shows the full question
 up to its 2,000-character limit.
 
-Live-run verified on 2026-11-07 with v0.4.0 installed into an isolated home,
-Hermes source `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`, and Desktop built from
-source. The status item, sidebar entry, Rulings page, status click-through and
-Retire confirmation followed by a retired store record worked. The v0.4.1 fixes
-have offline Python and SDK-facade coverage (`node tests/desktop.mjs`); they have
-not been re-run live. The packaged Desktop app has not been tested.
+Live run on v0.4.1: Hermes source 2bd378ed, Desktop built from source, isolated home, fake model. Packaged Desktop app not tested.
+On 2026-11-07, the catalog description, Desktop toggle and Rulings navigation,
+no-session guidance, status item, active/retired badges and confirmed retirement
+were verified on board `precedent-demo`. Retiring P-4 was verified through the
+CLI, and the status item changed from 2 rulings to 1 ruling. The earlier v0.4.0
+run also verified status click-through on the same Hermes source build.
 Keep `requires_hermes >=0.23.0`; the optional Desktop half requires the inspected
 page/nav, status, React, UI primitive and routed request APIs. For manual copying,
 include `desktop/` alongside `precedent_log/`.
 
-Screenshot placeholders: `docs/desktop-status.png` and `docs/desktop-rulings.png`.
-The real live-run captures will be added separately; no images are included here.
+![Desktop Rulings page with active and retired badges and the confirmation panel for retiring P-4](docs/desktop-rulings.png)
+
+![Desktop status item showing 2 rulings and the last veto for P-1, 27 minutes ago](docs/desktop-status.png)
 
 ## If a card gets stuck
 
