@@ -119,3 +119,35 @@ class DemoTests(unittest.TestCase):
             self.assertIn('relied', treated['cited_by_output'])
             self.assertIn(t2['task_id'], retired['stdout'])
             self.assertIn('1 completed job cited it:', retired['stdout'])
+
+
+    @slow
+    def test_slow_fake_additional_fixtures(self):
+        output = Path(tempfile.gettempdir()) / "precedent-demo-runs"
+        with tempfile.TemporaryDirectory(prefix="precedent-fixtures-") as scratch:
+            for fixture in ("dependency-upgrade", "customer-copy", "log-retention"):
+                for mode in ("enforce", "advisory", "control"):
+                    with self.subTest(fixture=fixture, mode=mode):
+                        home = Path(scratch) / (fixture + "-" + mode)
+                        command = [sys.executable, "-B", str(REPO / "demo/run.py"),
+                                   "--hermes-source", str(LAB_SOURCE), "--hermes-home", str(home),
+                                   "--out", str(output), "--model-provider", "fake", "--fixture", fixture]
+                        command += ["--no-plugin"] if mode == "control" else ["--veto", mode]
+                        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "PYTHONDONTWRITEBYTECODE": "1"}
+                        run = subprocess.run(command, env=env, cwd=scratch, text=True, capture_output=True, timeout=400)
+                        print(run.stdout, flush=True)
+                        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+                        path = Path(run.stdout.rsplit("Transcript: ", 1)[1].strip())
+                        data = json.loads(path.read_text())
+                        self.assertTrue(data["finished"])
+                        self.assertFalse(data["failures"])
+                        self.assertEqual(data["fixture"], fixture)
+                        self.assertTrue(all(step["fixture"] == fixture for step in data["steps"]))
+                        self.assertIn("fixture=" + fixture, run.stdout)
+                        self.assertEqual(data["cards"]["T1"]["state"], "done")
+                        self.assertEqual(data["cards"]["T2"]["state"], "done" if mode == "enforce" else "blocked")
+                        self.assertEqual(data["cards"]["T3"]["state"], "blocked")
+                        self.assertEqual(data["cards"]["T4"]["state"], "blocked")
+                        if mode == "enforce":
+                            self.assertEqual(data["cards"]["T2"]["citation_path"], "veto")
+                            self.assertIn("no precedent applies: P-1", data["cards"]["T3"]["last_reason_or_summary"])

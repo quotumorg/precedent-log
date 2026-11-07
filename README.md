@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 143 passing](https://img.shields.io/badge/offline_tests-143_passing-2b2a6b)](evidence/tests-r14.txt)
+[![offline tests: 150 passing](https://img.shields.io/badge/offline_tests-150_passing-2b2a6b)](evidence/tests-r16.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -156,7 +156,7 @@ python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 143 offline tests pass; the [verification](#verification) commands rerun them.
+This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 150 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
@@ -164,7 +164,7 @@ To watch real Hermes workers block, save a ruling and reuse it, still without an
 
 ### Current evidence: 9a06174 (2026-11-07)
 
-Six real-model runs used the public codeload tarball of `9a06174b65bb300a373581882393143fe503e2de` outside any Git tree, Hermes v0.23.0 at `2bd378ed`, and `demo/run.py` (worker timeout 180 seconds, warm-up timeout 300 seconds). Haiku is `claude-haiku-5-5` via the Anthropic API; `deepseek-v4-pro` used Venice (OpenAI-compatible endpoint).
+Six real-model runs used the public codeload tarball of `9a06174b65bb300a373581882393150fe503e2de` outside any Git tree, Hermes v0.23.0 at `2bd378ed`, and `demo/run.py` (worker timeout 180 seconds, warm-up timeout 300 seconds). Haiku is `claude-haiku-5-5` via the Anthropic API; `deepseek-v4-pro` used Venice (OpenAI-compatible endpoint).
 
 Cells describe each run separately. Identical results share a cell; differences are labeled Run 1 and Run 2. Enforce runs are `rec-treatment`, `rec-treatment-2`; advisory runs are `rec-advisory`, `rec-advisory-2`; control is `rec-control`; DeepSeek is `ds-9a06-1`.
 
@@ -198,7 +198,7 @@ Result lines from those captures (whitespace flattened; no omitted reason text):
 
 ```text
 f241ba3: T2 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? Precedent P-1 says "Use staging for the local migration plan. Production operations require fresh approval." Need confirmation that staging is the correct target before writing the final orders-plan.md. [precedent-log] syntactic citation marker; checked active matching P-1 | citation=False | path=. | output=False
-4beef52: T2 attempt-1 | blocked | needs_input | Target environment unresolved: should this orders.delivery_note migration target staging or production? Precedent P-1 ("Use staging for the local migration plan. Production operations require fresh approval") suggests staging. Please confirm or override. [precedent-log] checked 1 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False | mode=enforce
+4beef52: T2 attempt-1 | blocked | needs_input | Target environment unresolved: should this orders.delivery_note migration target staging or production? Precedent P-1 ("Use staging for the local migration plan. Production operations require fresh approval") suggests staging. Please confirm or override. [precedent-log] checked 1 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False | mode=enforce | fixture=migration
 ```
 
 ### Earlier evidence: r5
@@ -241,11 +241,13 @@ CONTROL_HOME="$(mktemp -d)"
 
 `--veto {enforce,advisory}` defaults to `enforce`. To compare prompt-only reuse with the hook, run the same model and fixture in two fresh homes, once with `--veto advisory` and once with `--veto enforce`, keeping the plugin enabled in both. Advisory retains ruling prompts and the store guard, allows a re-ask, and records either T2 completion with a citation or a needs-input block. Transcripts record `veto`; result lines print `mode=`. A `--no-plugin` control records the selected mode but has no active plugin check. The [current live table](#live-run) includes two Haiku runs per mode on the same fixture, with per-run outcomes and harness failures retained.
 
+The demo also offers `--fixture dependency-upgrade`, `--fixture customer-copy` and `--fixture log-retention`; `migration` remains the default. Each has independent human keys and T1..T4 scripts tested offline through loaded core tools. These authored fixtures are not held-out data, and no real-model runs of them are claimed. See [fixture commands](demo/README.md).
+
 Both fake commands should exit 0. Expected T2 result lines (the reason text is abbreviated here):
 
 ```text
-treatment: T2 attempt-1 | done | . | ... | citation=True | path=veto | output=True | mode=enforce
-control:   T2 attempt-1 | blocked | needs_input | ... | citation=False | path=. | output=False | mode=enforce
+treatment: T2 attempt-1 | done | . | ... | citation=True | path=veto | output=True | mode=enforce | fixture=migration
+control:   T2 attempt-1 | blocked | needs_input | ... | citation=False | path=. | output=False | mode=enforce | fixture=migration
 ```
 
 The harness installs the runtime plugin files from this repo into the new home, enables `plugins.isolation: in_process`, creates one board, and prints each result. An explicit `--hermes-home` or `HERMES_HOME` must be new or empty; without either, the harness creates one under its run directory. It never overwrites an existing configured profile. Both home and run directory must be outside any Git worktree: a parent walk rejects `.git` files or directories, including resolved symlink targets, before creating anything. `--repo` can select another local plugin checkout.
@@ -254,7 +256,7 @@ Before creating T1, a no-op runtime start initializes and closes the same `AIAge
 
 Read the exact jobs in [demo/tasks.json](demo/tasks.json). The fixture writes local migration plans, never executes a database migration. T2 and T3 first write a useful draft with the decision unresolved. The human intervention is scripted and printed: `hermes precedent add ... --source-task <T1-id>`, then core `hermes kanban unblock <T1-id> --reason ...`. These are two operations, without a shared transaction. Control gives T1 the same human answer, but stores no ruling; T2 gets no answer on its own card.
 
-**Launch-path limit:** v0.23.0's standard `hermes kanban dispatch` spawns a gateway owner client. To honor this experiment's no-gateway constraint, the harness uses the existing `dispatch_once(spawn_fn=...)` callback to launch local `AIAgent` subprocesses. CLI create/show/add/unblock/retire, core claiming/recovery, the model loop, tools and plugin hooks are real. No core functions are replaced. Version 0.2.2 strengthens the veto text only; it adds no continuation or reclaim mechanism, no hooks and no private helpers. This adapter is pin-specific evidence, not a test of the default CLI dispatch or gateway path.
+**Launch-path limit:** v0.23.0's standard `hermes kanban dispatch` spawns a gateway owner client. To honor this experiment's no-gateway constraint, the harness uses the existing `dispatch_once(spawn_fn=...)` callback to launch local `AIAgent` subprocesses. CLI create/show/add/unblock/retire, core claiming/recovery, the model loop, tools and plugin hooks are real. No core functions are replaced. This adapter is pin-specific evidence, not a test of the default CLI dispatch or gateway path.
 
 Each run prints its output directory and writes `<system-temp>/precedent-demo-runs/<run-id>/transcript.json` by default; `--out` selects another parent outside any repository. It records commands and return codes, warm-ups, every spawned attempt and PID/session/run ID, worker output, card snapshots, complete CLI event/run histories, artifacts, failures and fake-provider request/response bodies. Failed runs stay in separate run directories. Runtime homes and workspaces remain available after ordinary runs; tests remove their temporary homes. Transcripts retain their evidence.
 
@@ -368,7 +370,7 @@ python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 143 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r14.txt](evidence/tests-r14.txt).
+All 150 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.2 result is recorded in [evidence/tests-r16.txt](evidence/tests-r16.txt).
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 

@@ -21,6 +21,15 @@ import uuid
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 HERMES_PIN = "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19"
+FIXTURES = ("migration", "dependency-upgrade", "customer-copy", "log-retention")
+
+
+def load_fixture(name="migration"):
+    catalog = json.loads((HERE / "tasks.json").read_text())
+    if name not in FIXTURES:
+        raise ValueError("Unknown fixture: " + name)
+    return ({k: v for k, v in catalog.items() if k != "fixtures"}
+            if name == "migration" else catalog["fixtures"][name])
 
 
 def preflight(source):
@@ -117,6 +126,7 @@ def parse_args():
     parser.add_argument("--provider-env", help="Name of the already exported key variable; never a value or file")
     parser.add_argument("--base-url", help="Optional provider endpoint without credentials")
     parser.add_argument("--no-plugin", action="store_true")
+    parser.add_argument("--fixture", choices=FIXTURES, default="migration")
     parser.add_argument("--veto", choices=("enforce", "advisory"), default="enforce",
                         help="Plugin block-check mode (default: enforce); advisory retains prompt rulings")
     parser.add_argument("--include-b2", action="store_true", help="Also observe the no-edit veto, final text and core recovery")
@@ -140,8 +150,9 @@ class Harness:
         self.home.mkdir(parents=True, exist_ok=True)
         print(f"Run directory: {self.out}", flush=True)
         self.board = "precedent-demo"
-        self.fixture = json.loads((HERE / "tasks.json").read_text())
+        self.fixture = load_fixture(args.fixture)
         self.data = {"schema": 2, "run_id": args.run_id, "plugin": not args.no_plugin,
+                     "fixture": args.fixture,
                      "veto": args.veto,
                      "hermes_source": str(self.source), "hermes_home": str(self.home), "board": self.board,
                      "launch_path": "core dispatch_once(spawn_fn=local AIAgent subprocess); no gateway",
@@ -235,7 +246,8 @@ class Harness:
         # v0.23.0 has no task.block_kind; use the committed event payload.
         blocks = [e for e in card["events"] if e["kind"] == "blocked"]
         block_kind = blocks[-1]["payload"].get("kind") if blocks and card["task"]["status"] == "blocked" else None
-        step = {"label": label, "phase": phase, "task_id": task["id"], "state": card["task"]["status"],
+        step = {"label": label, "phase": phase, "fixture": self.args.fixture,
+                "task_id": task["id"], "state": card["task"]["status"],
                 "block_kind": block_kind, "last_reason_or_summary": latest,
                 **citation_evidence([a for a in self.data["attempts"] if a["label"] == label], file_text),
                 "output_file": str(output), "output_present": output.is_file(), "output_content": file_text,
@@ -247,7 +259,7 @@ class Harness:
             reason = " ".join(latest.split())
             print(f"{label} {phase} | {step['state']} | {step['block_kind'] or '.'} | "
                   f"{reason} | citation={step['citation_found']} | path={step['citation_path'] or '.'} | "
-                  f"output={step['output_present']} | mode={self.args.veto}", flush=True)
+                  f"output={step['output_present']} | mode={self.args.veto} | fixture={self.args.fixture}", flush=True)
         return step
 
     def warm_up(self):
@@ -366,32 +378,34 @@ class Harness:
             tool_text = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "tool")
             candidate = "candidate rulings" in tool_text
             block_args = {"kind": "needs_input", "reason": task["reason"]}
+            script = self.fixture.get("fake", {})
             plan = f"# {task['title']}\nTarget: staging\nPlan only; no SQL was executed.\n" \
                    "1. Back up the rehearsal dataset.\n2. Rehearse the nullable column addition on staging.\n" \
                    "3. Validate row counts and backwards compatibility.\n4. Roll back the rehearsal if validation fails.\n" \
                    "Production operations require fresh approval.\n"
+            plan = script.get("plan", plan)
             if label == "T1" and self.answered:
                 if "kanban_show" not in names:
                     response = ToolCall("kanban_show", {})
                 elif "write_file" not in names:
                     response = ToolCall("write_file", {"path": task["output"], "content": plan + "Source: human answer on this card.\n"})
                 elif "kanban_complete" not in names:
-                    response = ToolCall("kanban_complete", {"summary": "Human answer used: staging; users-plan.md written.", "artifacts": [task["output"]]})
+                    response = ToolCall("kanban_complete", {"summary": script.get("summary_t1", "Human answer used: staging; users-plan.md written."), "artifacts": [task["output"]]})
                 else:
                     response = Text("Local plan delivered.")
             elif label in {"T2", "T3", "T4"} and "write_file" not in names:
-                response = ToolCall("write_file", {"path": "draft.md", "content": "Local schema migration checklist.\nTarget unresolved.\nBack up, rehearse, validate, roll back.\n"})
+                response = ToolCall("write_file", {"path": "draft.md", "content": script.get("draft", "Local schema migration checklist.\nTarget unresolved.\nBack up, rehearse, validate, roll back.\n")})
             elif "kanban_block" not in names:
                 response = ToolCall("kanban_block", block_args)
             elif label == "T2" and candidate:
                 if names.count("write_file") < 2:
                     response = ToolCall("write_file", {"path": task["output"], "content": plan + "Decision source: per precedent P-1.\n"})
                 elif "kanban_complete" not in names:
-                    response = ToolCall("kanban_complete", {"summary": "per precedent P-1: staging chosen; orders-plan.md written. No operations authorized.", "artifacts": [task["output"]]})
+                    response = ToolCall("kanban_complete", {"summary": script.get("summary_t2", "per precedent P-1: staging chosen; orders-plan.md written. No operations authorized."), "artifacts": [task["output"]]})
                 else:
                     response = Text("Plan delivered per precedent P-1.")
             elif label == "T3" and candidate and names.count("kanban_block") == 1:
-                response = ToolCall("kanban_block", {**block_args, "reason": task["reason"] + " no precedent applies: P-1 chooses the environment for a local plan; it does not grant fresh permission to drop a production column."})
+                response = ToolCall("kanban_block", {**block_args, "reason": task["reason"] + " no precedent applies: " + script.get("rejection", "P-1 chooses the environment for a local plan; it does not grant fresh permission to drop a production column.")})
             else:
                 response = Text("Waiting for human input after the tool result; no edits made." if label == "B2" else "Waiting for human input.")
         request["scripted_response"] = {"type": type(response).__name__, **dataclasses.asdict(response)}
