@@ -12,8 +12,14 @@ HOME_PATH = re.compile(r'/(?:Users|home)/[^/\s"\x27\\<>]+')
 OPAQUE = re.compile(r'[A-Za-z0-9_+/=-]{121,}')
 
 
-def redact(text, prefixes):
+def redact(text, prefixes, hostname=None):
     counts = {}
+    if hostname is not None:
+        short = re.sub(r'\.local$', '', hostname.strip(), flags=re.I)
+        if not re.fullmatch(r'[A-Za-z0-9-]+', short):
+            raise ValueError('Hostname must be a nonempty local hostname')
+        pattern = re.compile(r'(?<![A-Za-z0-9-])' + re.escape(short) + r'(?:\.local)?(?![A-Za-z0-9-])', re.I)
+        text, counts['N'] = pattern.subn('<host>', text)
     for index, (source, placeholder) in enumerate(prefixes, 1):
         counts[f'P{index}'] = text.count(source)
         text = text.replace(source, placeholder)
@@ -27,7 +33,7 @@ def redact(text, prefixes):
     return text, counts
 
 
-def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5"):
+def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5", hostname=None):
     source, destination = source.resolve(), destination.resolve()
     if destination.is_relative_to(source) or source.is_relative_to(destination):
         raise ValueError('Source and destination must be separate trees')
@@ -55,7 +61,7 @@ def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5")
             if path.is_symlink() or not path.resolve().is_relative_to(root):
                 raise ValueError('Evidence source must be a regular local file')
             relative = Path('__fixtures__') / run / path.relative_to(root)
-            text, counts = redact(path.read_text(), prefixes)
+            text, counts = redact(path.read_text(), prefixes, hostname)
             if path.suffix == '.json':
                 json.loads(text)
             target = destination / relative
@@ -66,12 +72,14 @@ def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5")
     destination.joinpath('MANIFEST.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
     rules = [f'P{i}: supplied {"account label" if label == "<user>" else "prefix"} {i} becomes `{label}` (literal replacement, in argument order).'
              for i, (_, label) in enumerate(prefixes, 1)]
+    if hostname is not None:
+        rules.append('N: supplied hostname, case-insensitive with optional local suffix, becomes `<host>` (hostname value is never stored).')
     rules.extend([
         'H: any remaining absolute macOS or Linux user-home prefix becomes `<home>`; suffixes remain.',
         'O: each maximal base64-like or URL-safe token longer than 120 characters becomes `<opaque N chars>`, where N is its original length. The alphabet is ASCII letters, digits, underscore, plus, slash, equals and hyphen.',
         'D: literal and JSON-escaped U+2014 punctuation becomes a colon. No wording is paraphrased.',
     ])
-    keys = [f'P{i}' for i in range(1, len(prefixes) + 1)] + ['H', 'O', 'D']
+    keys = [f'P{i}' for i in range(1, len(prefixes) + 1)] + ['H', 'O', 'D'] + (['N'] if hostname is not None else [])
     lines = [
         f'# Live {edition} public evidence', '',
         f'All {len(manifest)} source transcripts, attempt records (including all warm-up starts), and workspace files are copied. No messages, failed starts, worker results or output files are dropped. Source files are unchanged. Hermes homes are not included. `__fixtures__/` is the scanner-recognized inert data path; the plugin never imports these recordings.', '',
@@ -111,5 +119,6 @@ if __name__ == '__main__':
     parser.add_argument('--run-source', nargs=2, action='append', metavar=('RUN', 'DIRECTORY'),
                         help='Explicit run directories; replaces the default r5 runs')
     parser.add_argument('--edition', choices=('r5', 'r14', 'r17'), default='r5')
+    parser.add_argument('--hostname', help='Private hostname supplied at run time; redact short and local-suffix forms')
     args = parser.parse_args()
-    print(f'Copied {copy_evidence(args.source, args.destination, args.prefix, args.run_source, args.edition)} files')
+    print(f'Copied {copy_evidence(args.source, args.destination, args.prefix, args.run_source, args.edition, args.hostname)} files')

@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 PATTERNS = {
+    'local hostname': re.compile(r'[A-Za-z0-9-]+\.local\b', re.I),
     'absolute home path': re.compile(r'/(?:Users|home)/[^<]'),
     'email': re.compile(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}'),
     'provider key': re.compile(r'\bsk-[A-Za-z0-9_-]{15,}'),
@@ -64,6 +65,7 @@ class PublicationTests(unittest.TestCase):
 
     def test_privacy_patterns_detect_required_leaks(self):
         samples = {
+            'local hostname': 'fixture-machine' + '.' + 'local',
             'absolute home path': '/' + 'Users/person/file',
             'email': 'person' + '@' + 'example.invalid',
             'provider key': 'sk-' + 'a' * 20,
@@ -96,6 +98,17 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(decoded['home'], '<home>/elsewhere')
         self.assertEqual(decoded['short'], 'b' * 120)
         self.assertEqual(counts, {'P1': 1, 'H': 1, 'O': 1, 'D': 1})
+
+    def test_hostname_redaction_is_case_insensitive_and_bounded(self):
+        recompute()
+        from evidence.redact import redact
+        host = 'fixture-machine'
+        text = host.upper() + '.' + 'LOCAL ' + host + ' other-' + host
+        cleaned, counts = redact(text, [], hostname=host + '.' + 'local')
+        self.assertEqual(cleaned, '<host> <host> other-' + host)
+        self.assertEqual(counts['N'], 2)
+        with self.assertRaises(ValueError):
+            redact(text, [], hostname='')
 
     def test_public_evidence_recomputes_readme_and_all_attempts(self):
         module = recompute()

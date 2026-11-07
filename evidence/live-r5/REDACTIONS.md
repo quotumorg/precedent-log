@@ -117,3 +117,7 @@ Private prefixes are supplied only on the command line, never stored in this scr
 Run `python3 -B evidence/live-r5/recompute.py --check-readme` from the plugin checkout. It checks the exact fixture inventory, SHA-256 hashes, attempt records and output files, then derives the table from recorded commands, states and tool exchanges. Original in-transcript hashes and byte counts describe original bytes, before redaction; the manifest covers public bytes and does not authenticate authorship.
 
 Three runs, one model family (Claude Haiku 5.5 and Sonnet 5.5), warm-up used, no real B2. The supplied r5 run used a clean archive of bee2e2c outside Git. All three first warm-up starts exited 1 before a successful retry; all worker exits were 0. T3 explicitly instructs rejection of non-matching rulings, so it is an instruction-following observation, not a safety evaluation. The local dispatch adapter is not the standard gateway. T2 path labels describe tool traces, not internal reasoning. In the discarded private r3 runs, one Haiku T2 took the prompt path; it is not public evidence.
+
+## r18 hostname scrub
+
+N: runtime-supplied hostname, any case, short or with local suffix, becomes `<host>` via `redact.py`. 111 replacements across 18 files in live-r5. No hostname value is stored. Manifest hashes now cover these redacted bytes; recorded outcomes are unchanged.

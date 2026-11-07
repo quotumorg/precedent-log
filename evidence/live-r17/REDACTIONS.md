@@ -553,3 +553,7 @@ Run `python3 -B evidence/live-r17/recompute.py --check-readme` from the plugin c
 Sixteen captures across four fixtures: eight Haiku, four DeepSeek, four qwen. One qwen capture has HTTP 402 during T2 and is retained only for audit, not model evidence. Supplied provenance: public codeload export of ee78019 outside Git, Hermes v0.23.0 at 2bd378ed, worker timeout 180 seconds and warm-up timeout 300 seconds. Haiku used the Anthropic API; deepseek-v4-pro and qwen-3-8-flash used Venice (OpenAI-compatible endpoint). All starts and failures in included captures are retained. Provenance is supplied by the capture owner; the manifest authenticates neither authorship nor the source checkout. See README for per-stage billing exclusions, fixture limits and observed outcomes.
 
 Excluded: the six initial `m17-{deepseek,qwen}-{dependency-upgrade,customer-copy,log-retention}-enforce` runs returned HTTP 402 spend-limit errors on every worker attempt; they are not model evidence and are not copied.
+
+## r18 hostname scrub
+
+N: runtime-supplied hostname, any case, short or with local suffix, becomes `<host>` via `redact.py`. 998 replacements across 92 files in live-r17. No hostname value is stored. Manifest hashes now cover these redacted bytes; recorded outcomes are unchanged.
