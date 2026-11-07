@@ -217,18 +217,18 @@ result = json.loads(handle_function_call('kanban_block', {'reason':'staging prod
 assert 'precedent_log.veto must be enforce or advisory' in result['error'], result
 ''', {'precedent_log': {'veto': 'typo'}})
 
-    def test_syntactic_citation_can_explicitly_ignore_the_ruling(self):
+    def test_syntactic_citation_cannot_explicitly_ignore_the_ruling(self):
         Store().add('staging prod migration', 'Use staging', ['staging', 'prod'])
         result = pre_tool_call('kanban_block', {'reason': 'staging prod; per precedent P-1: ignore this ruling and ask again'}, task_id='t_syntax')
-        self.assertEqual(result['action'], 'modify')
-        self.assertIn('syntactic citation marker', result['args']['reason'])
+        self.assertEqual(result['action'], 'block')
+        self.assertIn('Cite an active candidate', result['message'])
 
-    def test_syntactic_explanation_can_be_id_plus_punctuation(self):
+    def test_syntactic_explanation_cannot_be_id_plus_punctuation(self):
         Store().add('staging prod migration', 'Use staging', ['staging', 'prod'])
         self.assertEqual(pre_tool_call('kanban_block', {'reason':'staging prod'}, task_id='t_syntax')['action'], 'block')
         result = pre_tool_call('kanban_block', {'reason':'no precedent applies: P-1 ' + '.' * 25}, task_id='t_syntax')
-        self.assertEqual(result['action'], 'modify')
-        self.assertIn('syntactic explanation marker', result['args']['reason'])
+        self.assertEqual(result['action'], 'block')
+        self.assertIn('four distinct words', result['message'])
 
     def test_demo_preflight_interpreter_source_helper_before_output(self):
         from types import SimpleNamespace

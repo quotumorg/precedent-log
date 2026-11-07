@@ -9,9 +9,17 @@ from .stats import Events, show_task
 from .store import BoardPinError, Store, call_board
 
 
-CITATION = re.compile(r"\bprecedent\s+(P-[0-9]+)\b", re.I)
+CITATION = re.compile(r"\bprecedent\s+(\S+)", re.I)
+CITATION_ID = re.compile(r"(P-[0-9]+)[.,:;!?)\]}]?", re.I)
+OVERRIDE = re.compile(r"\b(?:ignore\s+(?:this\s+ruling|P-[0-9]+)|ask\s+again|disregard|override)\b", re.I)
 EXPLANATION = re.compile(r"\bno precedent applies:[ \t]*([^\r\n]*)", re.I)
 IDS = re.compile(r"\bP-[1-9][0-9]*\b", re.I)
+
+
+def explains(line, candidates):
+    words = set(re.findall(r"[^\W\d_]+", IDS.sub("", line).lower()))
+    return (len(line.strip()) >= 20 and len(words) >= 4
+            and set(candidates) <= {rid.upper() for rid in IDS.findall(line)})
 
 
 def annotate(args, line):
@@ -50,7 +58,11 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
     previous, _, policy_fault = policy.access()
     ids = [row["id"] for row in current]
     candidates = sorted(set(ids) | set(previous["candidates"]))
-    cited = sorted(set(rid.upper() for rid in CITATION.findall(reason)))
+    markers = CITATION.findall(reason)
+    cited = sorted({found[1].upper() for token in markers if (found := CITATION_ID.fullmatch(token))})
+    malformed = any(re.search(r"P[.-]", token, re.I) and not CITATION_ID.fullmatch(token) for token in markers)
+    if malformed or OVERRIDE.search(reason) or EXPLANATION.search(reason):
+        cited = []
     active = {row["id"] for row in state.active}
     invalid = [rid for rid in cited if rid not in active]
     # The display cap is three, but another active ruling can still match.
@@ -65,12 +77,11 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
         event = "citation"
     elif candidates:
         explanations = EXPLANATION.findall(reason)
-        if any(len(line.strip()) >= 20 and set(candidates) <= {rid.upper() for rid in IDS.findall(line)}
-               for line in explanations):
+        if any(explains(line, candidates) for line in explanations):
             event = "justification"
         else:
             issue = ("Cite an active candidate that matches this reason, or use 'no precedent applies:' "
-                     "with at least 20 characters explaining why and naming every candidate: " + ", ".join(candidates))
+                     "with at least 20 characters and four distinct words explaining why, naming every candidate: " + ", ".join(candidates))
     else:
         event = "unmatched"
 

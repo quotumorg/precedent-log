@@ -57,6 +57,52 @@ class GateTests(IsolatedTest):
         self.assertEqual(result["action"], "block")
         self.assertEqual(Events().summary()["passes_with_justification"], 1)
 
+    def test_override_phrases_are_uncited_case_insensitively(self):
+        phrases = ("ignore this ruling", "IGNORE P-1", "Ask Again", "disregard", "OVERRIDE")
+        for n, phrase in enumerate(phrases):
+            with self.subTest(phrase=phrase):
+                args = {**self.args, "reason": f"staging prod; per precedent P-1: {phrase}"}
+                self.assertEqual(self.call(args, task=f"override{n}")["action"], "block")
+        self.assertEqual(Events().summary()["passes_with_citation"], 0)
+
+    def test_decorated_or_malformed_citations_are_uncited(self):
+        for n, marker in enumerate(("P-1.foo", "P-1..", "P.1", "P-01", "P-1-extra",
+                                    "P-1x", "XP-1", "P-1_", "P-1/P-2", "*P-1*",
+                                    "P-1 and precedent P-1.foo")):
+            with self.subTest(marker=marker):
+                args = {**self.args, "reason": "staging prod; per precedent " + marker}
+                self.assertEqual(self.call(args, task=f"malformed{n}")["action"], "block")
+        self.assertEqual(Events().summary()["passes_with_citation"], 0)
+
+    def test_standalone_citations_allow_sentence_punctuation(self):
+        for n, marker in enumerate(("P-1", "p-1.", "P-1: use staging", "P-1, use staging")):
+            with self.subTest(marker=marker):
+                result = self.call({**self.args, "reason": "staging prod; per precedent " + marker}, task=f"valid{n}")
+                self.assertIn("checked active matching P-1", result["args"]["reason"])
+
+    def test_explanations_require_four_distinct_words_and_every_candidate(self):
+        self.store.add("staging prod target", "Use another plan", ["staging", "prod"])
+        cases = ("P-1 P-2 " + "." * 25, "P-1 P-2 different DIFFERENT different different",
+                 "P-1 P-2 target selection differs...", "P-1 target selection differs from permissions")
+        for n, explanation in enumerate(cases):
+            with self.subTest(explanation=explanation):
+                args = {**self.args, "reason": "staging prod; no precedent applies: " + explanation}
+                self.assertEqual(self.call(args, task=f"filler{n}")["action"], "block")
+        result = self.call({**self.args, "reason": "staging prod; no precedent applies: P-1 P-2 target selection differs here"})
+        self.assertIn("syntactic explanation marker", result["args"]["reason"])
+
+    def test_citation_cannot_bypass_an_incomplete_explanation(self):
+        reason = "staging prod; per precedent P-1; no precedent applies: P-1 ..."
+        self.assertEqual(self.call({**self.args, "reason": reason})["action"], "block")
+        reason = "staging prod; per precedent P-1; no precedent applies: P-1 covers targets, this asks about permission"
+        self.assertIn("syntactic explanation marker", self.call({**self.args, "reason": reason})["args"]["reason"])
+
+    def test_override_reasons_keep_the_bounded_veto_policy(self):
+        args = {**self.args, "reason": "staging prod; per precedent P-1: ask again"}
+        self.assertEqual([self.call(args)["action"] for _ in range(3)], ["block", "block", "modify"])
+        counts = Events().summary()
+        self.assertEqual((counts["gated_vetoes"], counts["uncited_passes"], counts["passes_with_citation"]), (2, 1, 0))
+
     def test_unmatched_and_kind_filter(self):
         result = self.call({"reason": "unrelated vendor contract", "kind": "needs_input"})
         self.assertIn("checked 1 active rulings on board default: none matched", result["args"]["reason"])

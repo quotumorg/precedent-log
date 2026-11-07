@@ -121,6 +121,49 @@ class DemoObservationTests(IsolatedTest):
         self.assertFalse(args.out.resolve().is_relative_to(REPO))
         outside_git(args.out, "Run directory")
 
+    def test_veto_argument_default_choices_and_invalid_value(self):
+        base = ["demo/run.py", "--hermes-source", str(LAB_SOURCE)]
+        for argv, mode in ((base, "enforce"), (base + ["--veto", "enforce"], "enforce"),
+                           (base + ["--veto", "advisory"], "advisory")):
+            with patch.object(sys, "argv", argv):
+                self.assertEqual(parse_args().veto, mode)
+        with patch.object(sys, "argv", base + ["--veto", "typo"]), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+            parse_args()
+        self.assertEqual(error.exception.code, 2)
+
+    def test_veto_mode_reaches_config_transcript_and_result_lines_offline(self):
+        for mode in ("enforce", "advisory"):
+            with self.subTest(mode=mode):
+                result = self.process('''
+import contextlib, io, json, sys
+from pathlib import Path
+from unittest.mock import Mock
+from demo.run import Harness, parse_args
+sys.argv = ['demo/run.py', '--hermes-source', SOURCE, '--hermes-home', HOME + '/lab-' + MODE,
+            '--out', HOME + '/runs', '--run-id', MODE, '--veto', MODE]
+h = Harness(parse_args())
+h.command = Mock()
+h.warm_up = Mock(side_effect=RuntimeError('stop before worker'))
+try:
+    h.execute(None)
+except RuntimeError as exc:
+    assert str(exc) == 'stop before worker'
+config = json.loads((h.home / 'config.yaml').read_text())
+assert config['plugins']['entries']['precedent-log']['settings']['precedent_log']['veto'] == MODE
+assert config['plugins']['enabled'] == ['precedent-log']
+assert json.loads((h.out / 'transcript.json').read_text())['veto'] == MODE
+h.tasks['T2'] = {'id': 't_example', 'workspace': str(h.out), 'output': 'missing.md'}
+h.command = Mock(return_value=Mock(stdout=json.dumps({
+    'task': {'workspace_path': str(h.out), 'status': 'blocked', 'block_reason': 'staging prod'},
+    'events': [{'kind': 'blocked', 'payload': {'kind': 'needs_input'}}]})))
+output = io.StringIO()
+with contextlib.redirect_stdout(output):
+    h.snapshot('T2', 'attempt-1')
+assert 'mode=' + MODE in output.getvalue(), output.getvalue()
+'''.replace('SOURCE', repr(str(LAB_SOURCE))).replace('HOME', repr(str(self.home))).replace('MODE', repr(mode)))
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def warmup_harness(self):
         harness = Harness.__new__(Harness)
         harness.out = self.home
@@ -130,6 +173,39 @@ class DemoObservationTests(IsolatedTest):
         harness.data = {"model": "fake-model", "warmups": []}
         harness.env, harness.save = {}, Mock()
         return harness
+
+    def test_advisory_records_prompt_completion_or_allowed_reask(self):
+        for mode, second_state, citation, expected_failure in (
+                ("advisory", "blocked", False, None), ("advisory", "done", True, None),
+                ("advisory", "done", False, "missing P-1 citation"),
+                ("advisory", "running", False, "expected done"),
+                ("enforce", "blocked", False, "expected done")):
+            with self.subTest(mode=mode, state=second_state, citation=citation):
+                h = Harness.__new__(Harness)
+                h.board = "precedent-demo"
+                h.home = self.home / f"lab-{mode}-{second_state}-{citation}"
+                h.home.mkdir()
+                h.args = SimpleNamespace(model_provider="fake", no_plugin=False, veto=mode,
+                                         repo=REPO, include_b2=False)
+                h.fixture = json.loads((REPO / "demo/tasks.json").read_text())
+                h.server = None
+                h.data = {"model": "fake-model", "failures": [], "cards": {
+                    label: {"state": second_state if label == "T2" else state,
+                            "block_kind": "needs_input", "output_present":
+                                (second_state == "done" if label == "T2" else state == "done"),
+                            "citation_found": citation, "last_reason_or_summary": "staging prod"}
+                    for label, state in (("T1", "done"), ("T2", "done"), ("T3", "blocked"), ("T4", "blocked"))}}
+                h.tasks = {"T1": {"id": "t_first"}}
+                h.command = Mock(return_value=Mock(returncode=0, stdout="recorded"))
+                h.warm_up = h.create = h.snapshot = h.save = Mock()
+                h.run_task = Mock(return_value={"state": "blocked", "block_kind": "needs_input", "output_present": False})
+                with contextlib.redirect_stdout(io.StringIO()):
+                    h.execute(None)
+                if expected_failure:
+                    self.assertTrue(any(expected_failure in f for f in h.data["failures"]), h.data["failures"])
+                else:
+                    self.assertEqual(h.data["failures"], [])
+                self.assertTrue(h.data["finished"])
 
     def test_warmup_retains_failed_start_then_retries_in_new_process(self):
         harness = self.warmup_harness()

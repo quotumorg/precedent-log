@@ -117,6 +117,8 @@ def parse_args():
     parser.add_argument("--provider-env", help="Name of the already exported key variable; never a value or file")
     parser.add_argument("--base-url", help="Optional provider endpoint without credentials")
     parser.add_argument("--no-plugin", action="store_true")
+    parser.add_argument("--veto", choices=("enforce", "advisory"), default="enforce",
+                        help="Plugin block-check mode (default: enforce); advisory retains prompt rulings")
     parser.add_argument("--include-b2", action="store_true", help="Also observe the no-edit veto, final text and core recovery")
     parser.add_argument("--timeout", type=float, default=90, help="Seconds per worker attempt")
     parser.add_argument("--warmup-timeout", type=float, default=300,
@@ -140,6 +142,7 @@ class Harness:
         self.board = "precedent-demo"
         self.fixture = json.loads((HERE / "tasks.json").read_text())
         self.data = {"schema": 2, "run_id": args.run_id, "plugin": not args.no_plugin,
+                     "veto": args.veto,
                      "hermes_source": str(self.source), "hermes_home": str(self.home), "board": self.board,
                      "launch_path": "core dispatch_once(spawn_fn=local AIAgent subprocess); no gateway",
                      "model_provider": args.model_provider, "model": args.model or "fake-model",
@@ -244,7 +247,7 @@ class Harness:
             reason = " ".join(latest.split())
             print(f"{label} {phase} | {step['state']} | {step['block_kind'] or '.'} | "
                   f"{reason} | citation={step['citation_found']} | path={step['citation_path'] or '.'} | "
-                  f"output={step['output_present']}", flush=True)
+                  f"output={step['output_present']} | mode={self.args.veto}", flush=True)
         return step
 
     def warm_up(self):
@@ -404,7 +407,8 @@ class Harness:
                   "agent": {"api_max_retries": 1}, "updates": {"check": False},
                   "terminal": {"env_type": "local"}, "kanban": {"dispatch_in_gateway": False},
                   "telemetry": {"shared_metrics": {"enabled": False, "send": False, "offer_version": 999}},
-                  "plugins": {"enabled": [] if self.args.no_plugin else ["precedent-log"], "isolation": "in_process"}}
+                  "plugins": {"enabled": [] if self.args.no_plugin else ["precedent-log"], "isolation": "in_process",
+                              "entries": {"precedent-log": {"settings": {"precedent_log": {"veto": self.args.veto}}}}}}
         if base_url:
             config["model"]["base_url"] = base_url
         (self.home / "config.yaml").write_text(json.dumps(config, indent=2))
@@ -451,6 +455,10 @@ class Harness:
         self.run_task("T4")
         self.data["finished"] = True
         expected = {"T1": "done", "T2": "blocked" if self.args.no_plugin else "done", "T3": "blocked", "T4": "blocked"}
+        # Advisory observes prompt-only reuse or an allowed re-ask; neither is a veto failure.
+        if not self.args.no_plugin and self.args.veto == "advisory":
+            second_state = self.data["cards"]["T2"]["state"]
+            expected["T2"] = second_state if second_state in {"done", "blocked"} else "done"
         for label, state in expected.items():
             actual = self.data["cards"][label]
             if actual["state"] != state or actual["output_present"] != (state == "done"):
@@ -459,10 +467,10 @@ class Harness:
                 self.data["failures"].append(f"{label}: expected needs_input, observed {actual['block_kind']}")
         if not self.args.no_plugin:
             second = self.data["cards"]["T2"]
-            if not second["citation_found"]:
+            if expected["T2"] == "done" and not second["citation_found"]:
                 self.data["failures"].append("T2: missing P-1 citation in completion or output")
             third = self.data["cards"]["T3"]["last_reason_or_summary"]
-            if "no precedent applies:" not in third.lower() or "P-1" not in third:
+            if self.args.veto == "enforce" and ("no precedent applies:" not in third.lower() or "P-1" not in third):
                 self.data["failures"].append("T3: missing explicit P-1 rejection")
         self.save()
 

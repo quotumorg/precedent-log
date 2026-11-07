@@ -12,15 +12,27 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 119 passing](https://img.shields.io/badge/offline_tests-119_passing-2b2a6b)](evidence/tests-r10.txt)
+[![offline tests: 128 passing](https://img.shields.io/badge/offline_tests-128_passing-2b2a6b)](evidence/tests-r11.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
 ## QUICKSTART
 
-With Hermes v0.23.0 already working on Linux or macOS, allow about 3-5 minutes to copy the plugin, merge configuration and save a first ruling. This is a setup estimate, excluding clone/download time and Hermes dependency setup. After installation, the three add/list/show commands below need no API key, worker or Kanban task.
+With Hermes v0.23.0 already working on Linux or macOS, install the plugin and save a first ruling below. For the manual copy path, allow about 3-5 minutes to copy files, merge configuration and save the ruling. This is a setup estimate, excluding clone/download time and Hermes dependency setup. After installation, the three add/list/show commands below need no API key, worker or Kanban task.
 
 ### Install
+
+```sh
+hermes plugins install quotumorg/precedent-log --enable
+```
+
+Verified separately on Hermes v0.23.0 in an empty `HERMES_HOME` at ref `f241ba38da07d8cd6b604dc94a01b13c6708b7b1`: exit 0; `plugins list` showed `enabled git pinned@f241ba38 0.2.1 precedent-log`; `precedent --help` listed add/retire/repair/list/show/verify/stats/cited-by; config gained `plugins.enabled: [precedent-log]`, isolation stayed at its documented `in_process` default; the home used 466 MB after Hermes prepared runtime dependencies.
+
+For a pinned install, add `--ref <full sha>` to the command. Use the intended profile's `HERMES_HOME` and start a new Hermes session after installation. Tested only on Hermes v0.23.0 on POSIX.
+
+### Manual install
+
+The copy path installs just the runtime plugin and was checked offline:
 
 ```sh
 git clone https://github.com/quotumorg/precedent-log
@@ -30,11 +42,7 @@ cp -R precedent-log/plugin.yaml precedent-log/__init__.py precedent-log/LICENSE 
   precedent-log/precedent_log "$HERMES_HOME/plugins/precedent-log/"
 ```
 
-Merge the configuration below into that profile's `config.yaml`; keep its existing enabled plugins. Start a new Hermes session after installation. The local-source install-and-enable check stopped at Hermes PM bootstrap because it required a download; the copy installation above was checked offline. Tested only on Hermes v0.23.0 on POSIX.
-
-### Install just the plugin
-
-The copy above installs just the runtime plugin. Merge these settings into `<HERMES_HOME>/config.yaml`:
+Merge these settings into `<HERMES_HOME>/config.yaml`, keeping existing enabled plugins:
 
 ```yaml
 plugins:
@@ -137,14 +145,15 @@ This is board context, not matcher-filtered context: newest IDs first, at most 2
 
 `repair --truncate-after N` is manual recovery: it backs up the full log and retains a verified prefix through physical line N. After damage it conservatively retires retained rulings and preserves observed IDs/retirements. Read `hermes precedent repair --help` and review the log before choosing N; there is no automatic repair.
 
-## Check recorded evidence in 60 seconds
+## Check the published results in 60 seconds
 
 ```sh
-cd precedent-log  # from the parent directory used in Install
+git clone https://github.com/quotumorg/precedent-log  # if not already cloned
+cd precedent-log
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 119 offline tests pass; the [verification](#verification) commands rerun them.
+This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 128 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
@@ -186,11 +195,13 @@ CONTROL_HOME="$(mktemp -d)"
   --hermes-home "$CONTROL_HOME" --model-provider fake --include-b2 --no-plugin
 ```
 
+`--veto {enforce,advisory}` defaults to `enforce`. To compare prompt-only reuse with the hook, run the same model and fixture in two fresh homes, once with `--veto advisory` and once with `--veto enforce`, keeping the plugin enabled in both. Advisory retains ruling prompts and the store guard, allows a re-ask, and records either T2 completion with a citation or a needs-input block. Transcripts record `veto`; result lines print `mode=`. A `--no-plugin` control records the selected mode but has no active plugin check. No real-model advisory/enforce pair is included in the published results yet.
+
 Both fake commands should exit 0. Expected T2 result lines (the reason text is abbreviated here):
 
 ```text
-treatment: T2 attempt-1 | done | . | ... | citation=True | path=veto | output=True
-control:   T2 attempt-1 | blocked | needs_input | ... | citation=False | path=. | output=False
+treatment: T2 attempt-1 | done | . | ... | citation=True | path=veto | output=True | mode=enforce
+control:   T2 attempt-1 | blocked | needs_input | ... | citation=False | path=. | output=False | mode=enforce
 ```
 
 The harness installs the runtime plugin files from this repo into the new home, enables `plugins.isolation: in_process`, creates one board, and prints each result. An explicit `--hermes-home` or `HERMES_HOME` must be new or empty; without either, the harness creates one under its run directory. It never overwrites an existing configured profile. Both home and run directory must be outside any Git worktree: a parent walk rejects `.git` files or directories, including resolved symlink targets, before creating anything. `--repo` can select another local plugin checkout.
@@ -255,8 +266,11 @@ The matcher uses lowercase ASCII words, fixed stopwords and simple trailing-`s` 
 
 ## Limits and failure behavior
 
+The bounded block-time veto checks an active matching ruling's citation marker or a stated reason, not correct application; keyed rulings match only when every key appears in the block reason, while keyless rulings use word overlap.
+Held-out candidate selection was 8/20 correct: 7 repeats found, 3 missed, 9 different decisions shown and 1 correctly excluded (see the [table](#candidate-errors-measured-without-tuning)).
+
 - Checks missing/`needs_input` kinds and `dependency` when public `kanban_show` finds no unsatisfied parent. Lookup failure checks conservatively; parent races and bypassed core paths remain outside the gate.
-- A syntactic citation marker must name an active matching ruling on this board. Otherwise `no precedent applies:` needs at least 20 characters naming every candidate shown for this task. Text length and IDs are checked, not semantic truth. Both `staging prod; per precedent P-1: ignore this ruling and ask again` and, after candidates are shown, `no precedent applies: P-1 .........................` can pass with matching fixture keys. Tests preserve these counterexamples; counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
+- A syntactic citation marker must name an active matching ruling on this board with an intact ID. References inside decorated tokens and requests to ignore a ruling, ask again, disregard or override are treated as uncited. Otherwise `no precedent applies:` needs at least 20 characters, four distinct words after removing IDs/punctuation, and every candidate shown for this task. These remain text checks, not semantic truth: counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
 - Two vetoes per task/board, then a visibly warned escalation. Policy counts and candidate IDs survive respawn separately from analytics. Stats count attempts, not distinct questions, human answers or completed jobs.
 - **B2:** public `pre_verify` continuation is available only after edits and below core's nudge cap. No-edit or cap-exhausted workers can exit without changing their running card. The scripted fake-provider local adapter shows requeue/requeue/warned-block with its chosen retry settings. No real-model B2 was run. Recovery relies on core dead-worker recovery and its retry settings; no recovery deadline is claimed. Advisory avoids this veto path. The offline `max_retries=1` test instead parks after the first exit. Default gateway ownership/timeout recovery has no demonstrated wall-time bound here.
 - Marked `execute_code` and process stdin writes are denied conservatively. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
@@ -309,7 +323,7 @@ HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 119 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r10.txt](evidence/tests-r10.txt).
+All 128 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r11.txt](evidence/tests-r11.txt).
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 
