@@ -54,6 +54,12 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
     task_id = guard.worker_task() or args.get("task_id") or task_id
     events = Events(store.board)
     current = match(reason, state.active)
+    markers = CITATION.findall(reason)
+    cited = sorted({found[1].upper() for token in markers if (found := CITATION_ID.fullmatch(token))})
+    cited = sorted(set(cited) | {row["id"] for row in state.active if quotes_ruling(reason, row["ruling"])})
+    # The worker's own citation declares relevance, independently of key matching.
+    current_ids = {row["id"] for row in current}
+    current.extend(row for row in state.active if row["id"] in cited and row["id"] not in current_ids)
     if veto_mode == "advisory":
         from .section import row_data
         lines = ["advisory candidate rulings; block proceeds without a veto"]
@@ -67,29 +73,21 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
     previous, _, policy_fault = policy.access()
     ids = [row["id"] for row in current]
     candidates = sorted(set(ids) | set(previous["candidates"]))
-    markers = CITATION.findall(reason)
-    cited = sorted({found[1].upper() for token in markers if (found := CITATION_ID.fullmatch(token))})
-    cited = sorted(set(cited) | {row["id"] for row in state.active if quotes_ruling(reason, row["ruling"])})
     malformed = any(re.search(r"P[.-]", token, re.I) and not CITATION_ID.fullmatch(token) for token in markers)
     if malformed or OVERRIDE.search(reason):
         cited = []
     active = {row["id"] for row in state.active}
     invalid = [rid for rid in cited if rid not in active]
-    # The display cap is three, but another active ruling can still match.
-    unmatched = [rid for rid in cited if rid in active and not match(reason, [state.entries[rid]])]
-    candidates = sorted(set(candidates) | (set(cited) - set(invalid) - set(unmatched)))
     explanations = EXPLANATION.findall(reason)
     if explanations:
-        cited = sorted(set(cited) - set(invalid) - set(unmatched))
-        invalid, unmatched = [], []
+        cited = sorted(set(cited) - set(invalid))
+        invalid = []
     issue = ""
     event = ""
     if candidates and any(explains(line, candidates) for line in explanations):
         event = "justification"
     elif invalid:
         issue = "; ".join(rid + " is not an active ruling on this board" for rid in invalid)
-    elif unmatched:
-        issue = "Cited ruling did not match this reason: " + ", ".join(unmatched)
     elif cited:
         issue = ("The cited ruling already answers this: " + ", ".join(cited) +
                  ". Proceed per " + ", ".join(cited) + " and cite it in the completion, or block with "
@@ -109,7 +107,7 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
         fault = record(events, event, task_id, candidates)
         if fault:
             faults.append(fault)
-        if cited and not invalid and not unmatched:
+        if cited and not invalid:
             fault = record(events, "citation", task_id, cited, veto=veto)
             if fault and fault not in faults:
                 faults.append(fault)
@@ -123,7 +121,7 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
                          "and explain each candidate. The card is still running.")
             lines.extend("[precedent-log] " + fault for fault in faults)
             return {"action": "block", "message": "\n".join(lines)}
-        warning = ("escalated despite citing an already answering ruling " if cited and not invalid and not unmatched
+        warning = ("escalated despite citing an already answering ruling " if cited and not invalid
                    else "escalated without citing candidates ") + (", ".join(candidates) or "(none)")
         return annotate(args, "; ".join([warning, issue, *faults]))
 

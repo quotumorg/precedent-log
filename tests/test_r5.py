@@ -227,11 +227,15 @@ from precedent_log.stats import Events
 from demo.run import citation_evidence
 Store().add('staging prod migration', 'Use staging for the local migration plan.', ['staging', 'prod'])
 with kbc.connect_closing() as conn:
-    for suffix in ('', '; per precedent P-1', '; "USE STAGING for the local migration plan."'):
+    for reason, cited in (('staging or prod for the migration?', False),
+                          ('staging or prod for the migration? per precedent P-1', True),
+                          ('staging or prod for the migration? "USE STAGING for the local migration plan."', True),
+                          ('Target unresolved. Precedent P-1. Please confirm.', True),
+                          ('"USE STAGING for the local migration plan." Please confirm.', True)):
         tid = kb.create_task(conn, title='T2 repeated decision', assignee='worker')
         claimed = kb.claim_task(conn, tid)
         os.environ.update(HERMES_KANBAN_TASK=tid, HERMES_KANBAN_RUN_ID=str(claimed.current_run_id))
-        args = {'reason': 'staging or prod for the migration?' + suffix, 'kind': 'needs_input'}
+        args = {'reason': reason, 'kind': 'needs_input'}
         result = json.loads(handle_function_call('kanban_block', args, session_id='r12', turn_id=tid))
         assert 'candidate rulings' in result['error'], result
         assert kb.get_task(conn, tid).status == 'running'
@@ -249,7 +253,7 @@ with kbc.connect_closing() as conn:
         evidence = citation_evidence([{'task_id': tid, 'worker': {'result': {'messages': messages}}}], output.read_text())
         assert evidence['citation_found'] and evidence['citation_path'] == 'veto', evidence
         rows = [row for row in Events().cited_by('P-1') if row['task_id'] == tid]
-        assert [row['event'] for row in rows] == (['citation', 'relied'] if suffix else ['relied']), rows
+        assert [row['event'] for row in rows] == (['citation', 'relied'] if cited else ['relied']), rows
         os.environ.pop('HERMES_KANBAN_TASK')
         os.environ.pop('HERMES_KANBAN_RUN_ID')
 ''')
