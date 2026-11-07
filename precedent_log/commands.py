@@ -14,7 +14,7 @@ from .store import Store
 def setup_cli(parser):
     parser.add_argument("--board", default=None)
     sub = parser.add_subparsers(dest="precedent_action", required=True)
-    for name in ("add", "retire", "repair", "list", "show", "verify", "stats"):
+    for name in ("add", "retire", "repair", "list", "show", "verify", "stats", "cited-by"):
         item = sub.add_parser(name)
         item.add_argument("--board", default=argparse.SUPPRESS)
         if name == "add":
@@ -26,6 +26,10 @@ def setup_cli(parser):
         elif name == "retire":
             item.add_argument("id")
             item.add_argument("--reason", required=True)
+            item.add_argument("--replaced-by", default=None)
+        elif name == "cited-by":
+            item.add_argument("id")
+            item.add_argument("--json", action="store_true")
         elif name == "show":
             item.add_argument("id")
         elif name == "repair":
@@ -44,6 +48,20 @@ def _text(rows):
                      f"{row['ruling']} (asked: {row['question']})" for row in rows) or "No rulings."
 
 
+def _retire_report(store, row):
+    rid = row['id']
+    replacement = f" Replaced by {row['replaced_by']}." if row.get('replaced_by') else ''
+    review = ' Review them: hermes precedent cited-by ' + rid
+    try:
+        tasks = list(dict.fromkeys(item['task_id'] for item in Events(store.board).cited_by(rid)
+                                   if item['event'] == 'relied'))
+    except (OSError, ValueError):
+        return f'{rid} retired.{replacement} Cited-by log unavailable.' + review
+    jobs = ', '.join(tasks)
+    return (f"{rid} retired. {len(tasks)} completed jobs cited it: {jobs or '(none)'}."
+            + replacement + review)
+
+
 def cli(args):
     try:
         action = args.precedent_action
@@ -55,8 +73,12 @@ def cli(args):
                             source_task=args.from_task, also=args.also)
             print(row["id"])
         elif action == "retire":
-            store.retire(args.id, args.reason, author=getpass.getuser())
-            print("Retired " + args.id)
+            row = store.retire(args.id, args.reason, author=getpass.getuser(), replaced_by=args.replaced_by)
+            print(_retire_report(store, row))
+        elif action == 'cited-by':
+            rows = Events(store.board).cited_by(args.id)
+            print(json.dumps(rows, indent=2) if args.json else '\n'.join(
+                f"{row['task_id']} | {row['event']} | {row['created_at']}" for row in rows) or 'No citations.')
         elif action == "list":
             rows = store.list(args.all)
             print(json.dumps(rows, indent=2) if args.json else _text(rows))
@@ -100,9 +122,18 @@ def ruling(raw_args, *, platform=None, session_key=None, **kwargs):
         if raw.startswith("retire "):
             parts = raw.split(None, 2)
             if len(parts) != 3:
-                raise ValueError("Use /ruling retire P-n <reason>")
-            store.retire(parts[1], parts[2], author=author, surface="slash")
-            return "Retired " + parts[1]
+                raise ValueError("Use /ruling retire P-n <reason> [--replaced-by P-n]")
+            reason = parts[2]
+            replacement = None
+            found = re.search(r'\s*--replaced-by\s+(\S+)\s*$', reason)
+            if found:
+                replacement, reason = found[1], reason[:found.start()]
+            elif '--replaced-by' in reason:
+                raise ValueError('Use --replaced-by P-n at the end of the retirement reason')
+            if reason.startswith('--reason '):
+                reason = reason[len('--reason '):]
+            row = store.retire(parts[1], reason, author=author, surface="slash", replaced_by=replacement)
+            return _retire_report(store, row)
         return "Use /ruling add <question> => <ruling> [keys: a, b] or /ruling retire P-n <reason>"
     except (OSError, ValueError) as exc:
         return str(exc)

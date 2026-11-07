@@ -6,7 +6,7 @@ maintainer: quotumorg
 tier: community
 category: memory
 requires_hermes: ">=0.23.0"
-version: "0.2.0"
+version: "0.2.1"
 readme: true
 platforms: [linux, macos]
 known_issues:

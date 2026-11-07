@@ -10,7 +10,7 @@ Answer a Kanban worker's question once. Later workers on the same board reuse yo
 
 Rulings are guidance for matching questions, never permission for new actions.
 
-[![offline tests: 99 passing](https://img.shields.io/badge/offline_tests-99_passing-2b2a6b)](evidence/tests-r6.txt)
+[![offline tests: 113 passing](https://img.shields.io/badge/offline_tests-113_passing-2b2a6b)](evidence/tests-r8.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -33,7 +33,7 @@ git clone https://github.com/quotumorg/precedent-log && cd precedent-log
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 99 offline tests pass; the [verification](#verification) commands rerun them.
+This recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 113 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
@@ -45,7 +45,7 @@ Active rulings for the current profile and board appear in the worker's system p
 
 Any process able to write this store supplies prompt text and is trusted. Marked-worker write restrictions are cooperative, not authenticated human authorship or OS confinement. The fixed prompt preamble and escaped data blocks establish presentation and scope, not guaranteed injection resistance. Rulings never grant permission for new actions.
 
-Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.2.0; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
+Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.2.1; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
 
 ## Live run
 
@@ -161,12 +161,17 @@ hermes precedent add --board release \
 hermes kanban --board release unblock t_example --reason "Use staging for the local plan."
 hermes precedent list --board release --json
 hermes precedent show P-1 --board release
+hermes precedent cited-by P-1 --board release --json
 hermes precedent retire P-1 --board release --reason "Policy replaced"
+# After adding active P-2 on this board:
+hermes precedent retire P-1 --board release --reason "Policy replaced" --replaced-by P-2
 hermes precedent verify --board release
 hermes precedent stats --board release
 ```
 
-`--source-task` and its existing alias `--from-task` record provenance; neither imports a comment nor unblocks a task. `--also "alternate question"` is repeatable. Slash commands: `/ruling add <question> => <ruling> [keys: a, b]`, `/ruling retire P-1 <reason>`, `/rulings`.
+`--source-task` and its existing alias `--from-task` record provenance; neither imports a comment nor unblocks a task. `--also "alternate question"` is repeatable. Slash commands: `/ruling add <question> => <ruling> [keys: a, b]`, `/ruling retire P-1 <reason> [--replaced-by P-2]`, `/rulings`.
+
+`cited-by P-1` lists recorded task IDs, event kinds and times on this board, including retired rulings. A successful worker `kanban_complete` summary with a word-bounded active ruling ID records `relied`; block-time `citation` events also appear. These are syntactic markers, not proof of correct application. Retirement reports distinct completed jobs from `relied` events for human review. `--replaced-by P-2` requires an active ruling on this board and stores the link with the reason, visible in `show`.
 
 Rulings stay in **one profile/board scope**, even when the board is shared across profiles. Use the worker's profile. Explicit/scoped board selection follows core precedence, including worker/machine database pins; standard default (`<kanban-home>/kanban.db`) and named-board physical paths win over a stale board marker. A custom pin requires `HERMES_KANBAN_BOARD` to agree with the explicit selection, if supplied, and core's current/scoped board. Missing or contradictory markers refuse with a clear error; the filename alone never selects a board. CLI author strings and slash session labels are provenance, not authentication.
 
@@ -202,6 +207,7 @@ The matcher uses lowercase ASCII words, fixed stopwords and simple trailing-`s` 
 - **B2:** public `pre_verify` continuation is available only after edits and below core's nudge cap. No-edit or cap-exhausted workers can exit without changing their running card. The scripted fake-provider local adapter shows requeue/requeue/warned-block with its chosen retry settings. No real-model B2 was run. Recovery relies on core dead-worker recovery and its retry settings; no recovery deadline is claimed. Advisory avoids this veto path. The offline `max_retries=1` test instead parks after the first exit. Default gateway ownership/timeout recovery has no demonstrated wall-time bound here.
 - Marked `execute_code` and process stdin writes are denied conservatively. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
 - Locked JSONL and hashes detect ordinary changes, not a recomputed whole chain or deleted final suffix. Damage quarantines the board. Human `repair --truncate-after N` backs up the complete file and atomically checkpoints a clean prefix, preserves observed retirements/ID high-water, and conservatively retires retained entries after damage. Review before re-adding.
+- Retirement never edits, reopens or blocks tasks. Review cited jobs manually; existing session prompts and completed outputs are not revoked.
 - Analytics faults are visible where possible. Post-commit observer failures can lose observations. Policy-storage failure has a visible process-local fallback; persistence across respawns then cannot be guaranteed.
 - Host isolation, other versions/platforms, other plugin combinations, real-model reliability beyond the three observations above, a board-document baseline and general savings remain untested. No wrapper, search, export or Desktop surface is included.
 
@@ -222,7 +228,7 @@ Descriptions follow the supplied 2026-11-06 research snapshot, not a claim of ex
 
 **Installed plugin:** no network, model calls, shell execution, credentials or background processes. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic retention or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
 
-**Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command and one bounded prompt section; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced.
+**Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command (`precedent`: add, retire, repair, list, show, verify, stats, cited-by) and one bounded prompt section; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced.
 
 **Opt-in demo:** reads the supplied Hermes source and local repository; copies only runtime plugin files into an empty lab home; writes config, boards, worker data, artifacts and transcripts. Starts bounded local subprocesses and, in fake mode, a loopback HTTP server. The supplied Python audit-hook checks apply to the in-process harness only. Subprocesses, native network and native file access are outside those checks. This is not an OS sandbox; run the demo in a throwaway home outside any repository. See [demo limits](demo/README.md). Real mode sends task/context data to the explicitly selected provider and can incur its charges. Only the named environment credential is forwarded; its value is redacted from transcripts and never written to config. The adapter uses additional private core Python entrypoints; it is not installed as plugin runtime.
 
@@ -236,7 +242,7 @@ HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 99 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The r6 result is recorded in [evidence/tests-r6.txt](evidence/tests-r6.txt).
+All 113 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r8.txt](evidence/tests-r8.txt).
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 

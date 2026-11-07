@@ -176,6 +176,9 @@ def schema_error(row, board):
             return "invalid source_task"
     elif not isinstance(row.get("reason"), str) or not row["reason"].strip():
         return "invalid retirement reason"
+    if row['op'] == 'retire' and row.get('replaced_by') is not None and (
+            not isinstance(row['replaced_by'], str) or not ID.fullmatch(row['replaced_by'])):
+        return 'invalid replaced_by'
     if row["op"] == "repair" and (not isinstance(row.get("retired_ids"), list) or any(
             not isinstance(rid, str) or not ID.fullmatch(rid) for rid in row["retired_ids"])):
         return "invalid preserved retirements"
@@ -274,6 +277,12 @@ class Store:
             rid = fields.pop("id", None) if op == "retire" else "P-" + str(state.max_id + 1)
             if op == "retire" and (rid not in state.entries or state.entries[rid]["retired"]):
                 raise ValueError("No active ruling " + str(rid))
+            replacement = fields.get('replaced_by')
+            if op == 'retire' and replacement is not None:
+                if replacement == rid:
+                    raise ValueError('Replacement must not be the retired ruling itself')
+                if replacement not in state.entries or state.entries[replacement]['retired']:
+                    raise ValueError('Replacement must exist and be active on this board')
             row = {"v": 1, "op": op, "id": rid, "board": self.board,
                    "author": author, "surface": surface, "created_at": timestamp(),
                    "prev": state.tail, **fields}
@@ -290,8 +299,9 @@ class Store:
         return self._write("add", author, surface, question=question.strip(), ruling=ruling.strip(),
                            keys=list(keys or []), source_task=source_task, also=list(also or []))
 
-    def retire(self, rid, reason, author="human", surface="cli"):
-        return self._write("retire", author, surface, id=rid, reason=reason.strip())
+    def retire(self, rid, reason, author="human", surface="cli", replaced_by=None):
+        fields = {'replaced_by': replaced_by} if replaced_by is not None else {}
+        return self._write("retire", author, surface, id=rid, reason=reason.strip(), **fields)
 
     def list(self, include_retired=False):
         state = self.read()

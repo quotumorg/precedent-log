@@ -78,7 +78,8 @@ class GuardCommandTests(IsolatedTest):
         self.assertEqual(commands.ruling("add vendor approval => Ask owner [keys: vendor, approval]", platform="telegram", session_key="s123"), "Added P-2")
         row = Store().list()[0]
         self.assertEqual((row["author"], row["surface"], row["keys"]), ("telegram:s123", "slash", ["vendor", "approval"]))
-        self.assertEqual(commands.ruling("retire P-2 Replaced"), "Retired P-2")
+        self.assertEqual(commands.ruling("retire P-2 Replaced"),
+                         'P-2 retired. 0 completed jobs cited it: (none). Review them: hermes precedent cited-by P-2')
         for args in (self.parse("list", "--all", "--json"), self.parse("show", "P-2"), self.parse("verify"), self.parse("stats")):
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(commands.cli(args), 0)

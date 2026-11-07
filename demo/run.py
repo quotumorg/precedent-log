@@ -441,8 +441,12 @@ class Harness:
             self.create(self.fixture["b2"])
             self.run_task("B2")
         if not self.args.no_plugin:
-            self.command(["precedent", "retire", "P-1", "--board", self.board,
-                          "--reason", "Demo retirement: require a new decision."], echo=True)
+            cited_by = self.command(['precedent', 'cited-by', 'P-1', '--board', self.board], echo=True)
+            self.data['cited_by_output'] = cited_by.stdout
+            print(cited_by.stdout.strip(), flush=True)
+            retired = self.command(["precedent", "retire", "P-1", "--board", self.board,
+                                    "--reason", "Demo retirement: require a new decision."], echo=True)
+            print(retired.stdout.strip(), flush=True)
         self.create(self.fixture["tasks"][3])
         self.run_task("T4")
         self.data["finished"] = True

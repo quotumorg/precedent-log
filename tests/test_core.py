@@ -80,6 +80,31 @@ assert store.verify()['ok']
 print('Actual loader + tool dispatcher: all six review write routes refused; store unchanged.')
 ''')
 
+    def test_real_loaded_completion_records_reliance_and_cli_retirement(self):
+        self.loaded(r'''
+from precedent_log.stats import Events
+from precedent_log.commands import cli, setup_cli
+import argparse
+with kbc.connect_closing() as conn:
+    tid = kb.create_task(conn, title='Offline reliance test', assignee='worker')
+    claimed = kb.claim_task(conn, tid)
+    os.environ.update(HERMES_KANBAN_TASK=tid, HERMES_KANBAN_RUN_ID=str(claimed.current_run_id))
+    done = json.loads(handle_function_call('kanban_complete', {'summary': 'P-1: used staging'},
+                                          session_id='reliance', turn_id='one'))
+    assert done.get('ok'), done
+    assert kb.get_task(conn, tid).status == 'done'
+    rows = Events().cited_by('P-1')
+    assert len(rows) == 1 and rows[0]['task_id'] == tid and rows[0]['event'] == 'relied', rows
+    os.environ.pop('HERMES_KANBAN_TASK')
+    os.environ.pop('HERMES_KANBAN_RUN_ID')
+    parser = argparse.ArgumentParser()
+    setup_cli(parser)
+    cli(parser.parse_args(['cited-by', 'P-1']))
+    cli(parser.parse_args(['retire', 'P-1', '--reason', 'Offline human review']))
+    assert kb.get_task(conn, tid).status == 'done'
+    assert len(Events().cited_by('P-1')) == 1
+''')
+
     def test_real_stop_gates_partial_seam_and_successful_terminal_clearing(self):
         self.loaded(r'''
 from agent.turn_stop_gates import apply_stop_gates

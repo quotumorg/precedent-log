@@ -24,10 +24,14 @@ def register(ctx):
     def on_blocked(**kwargs):
         return stats.on_blocked(ctx=ctx, **kwargs)
 
+    def post_tool_call(**kwargs):
+        continuation.after(**kwargs)
+        return stats.on_completed(**kwargs)
+
     ctx.register_hook("pre_tool_call", pre_tool_call)
     ctx.register_hook("kanban_task_blocked", on_blocked)
     ctx.register_hook("pre_verify", continuation.pre_verify)
-    ctx.register_hook("post_tool_call", continuation.after)
+    ctx.register_hook("post_tool_call", post_tool_call)
     ctx.register_hook("on_session_end", continuation.finish)
     ctx.register_command("ruling", commands.ruling, description="Add or retire a human ruling",
                          args_hint="add <question> => <ruling> [keys: a, b] | retire P-n <reason>")

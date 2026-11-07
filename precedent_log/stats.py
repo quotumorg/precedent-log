@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 
 from .store import append_line, locked, resolve_board, store_dir, timestamp
 
@@ -92,6 +93,40 @@ class Events:
                 if isinstance(rid, str):
                     result["ruling_hits"][rid] = result["ruling_hits"].get(rid, 0) + 1
         return result
+
+    def cited_by(self, rid):
+        from .store import Store
+        if not any(row['id'] == rid for row in Store(self.board).list(True)):
+            raise ValueError('Unknown ruling ' + rid)
+        with locked(self.lock, exclusive=False):
+            rows, _ = self._read()
+        return [{key: row.get(key, '') for key in ('task_id', 'event', 'created_at')}
+                for row in rows if row['event'] in {'relied', 'citation'}
+                and row.get('task_id') and rid in row.get('ids', [])]
+
+
+def on_completed(tool_name=None, args=None, result=None, **kwargs):
+    """Observe successful worker completions; never change the tool result or task."""
+    if tool_name != 'kanban_complete':
+        return None
+    try:
+        from .guard import worker_task
+        from .store import Store, call_board
+        task_id = worker_task()
+        args = args if isinstance(args, dict) else {}
+        result = json.loads(result) if isinstance(result, str) else result
+        if (not task_id or args.get('task_id', task_id) != task_id
+                or not isinstance(result, dict) or result.get('ok') is not True or result.get('error')):
+            return None
+        state_store = Store(call_board(args.get('board')))
+        state = state_store.read()
+        cited = {rid.upper() for rid in re.findall(r'\bP-[1-9][0-9]*\b', str(args.get('summary') or ''), re.I)}
+        ids = [row['id'] for row in state.active if row['id'] in cited]
+        if ids:
+            Events(state_store.board).record('relied', task_id, ids)
+    except Exception:
+        # Like the block observer, analytics cannot undo a committed transition.
+        return None
 
 
 def show_task(ctx, task_id, board=None):
