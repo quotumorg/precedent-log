@@ -41,7 +41,7 @@ class StatusTests(IsolatedTest):
         with patch('precedent_log.stats.timestamp', return_value='2026-01-01T12:01:00Z'):
             self.assertEqual(decide(args)['action'], 'block')
         self.assertEqual(decide(args)['action'], 'modify')
-        self.assertTrue(rulings('status').endswith('12:01:00Z'))
+        self.assertTrue(rulings('status').endswith('12:01:00Z; veto cap reached'))
         events = Events('default')._read()[0]
         self.assertEqual(sum(e['event'] == 'veto' for e in events), 2)
         Store('default').retire('P-1', 'obsolete')

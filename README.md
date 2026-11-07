@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 161 passing](https://img.shields.io/badge/offline_tests-161_passing-2b2a6b)](evidence/tests-r18.txt)
+[![offline tests: 169 passing](https://img.shields.io/badge/offline_tests-169_passing-2b2a6b)](evidence/tests-r19.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -79,41 +79,60 @@ To see the full save-and-reuse cycle, use the [scripted worker scenario](#try-th
 
 When finished with the trial, use `hermes precedent retire P-1 --board default --reason "Finished trial"` with the actual ID printed by `add`.
 
-## Desktop status item
+## Desktop
 
-Version 0.3.0 ships `desktop/plugin.js` in the same package. Enable its Desktop half in
-Hermes Desktop's plugin settings on an SDK-compatible build. The native right-hand
-status item shows, for example:
+Version 0.4.0 ships `desktop/plugin.js` in the same package. Enable its Desktop half
+in Hermes Desktop's plugin settings on an SDK-compatible build. Open **Rulings**
+from the sidebar or click the native right-hand status item:
 
 ```text
 Precedent Log · 3 rulings · last veto: P-1 schema migrations, 2 min ago
 Precedent Log · 3 rulings · no veto yet
 ```
 
-It only reads `/rulings status` through the focused session's connection-qualified
-profile route, every three seconds. The count is active rulings on that profile's
-current board, not all boards or the selected card. The title is the first candidate's
-saved question (at most 40 characters); age comes from the latest recorded gate veto's
-UTC timestamp. A veto naming several candidates shows one representative ruling.
-Retired rulings can still appear as the historical last veto. There are no chat
-messages, model calls or additional tokens for the item.
+The page lists active and retired rulings on the focused profile's current board,
+with IDs, short question titles, keys, completed-job citation counts and veto history.
+Expand a row for the ruling text and completed job IDs. Counts mean recorded unique
+completed jobs, not proof that a ruling was applied correctly. The current board is
+the backend's board selection, not a separately selected card or Desktop board tab.
+**Retire** opens an explicit inline confirmation. Confirming calls the existing
+human-only slash retirement path, pinned to the displayed board; it then re-reads
+the store. Errors stay visible. No optimistic retirement, automatic reopening,
+replacement selector or other write action is provided. The recorded reason is
+`Retired from Desktop`; use CLI/slash when a custom reason or replacement is needed.
 
-The existing append-only `<board>.events.jsonl` already records actual gate vetoes
-alongside citation data, including IDs and timestamps. This release adds no event
-writes, files or gate changes. Reads are bounded to 1 MiB of ruling data and the last
-64 KiB of events, with a 4 KiB event-line limit and a 256-character response limit.
-If older veto history falls outside that window, the item hides instead of claiming
-there was no veto. Missing profile, board or store, damaged/oversized data, and failed
-requests also hide it. Only one request sequence can be in flight; stale data hides
-at five seconds, checked once a second, and focus/profile/gateway changes clear it
-immediately. A permanently unresolved SDK call requires host recovery or reload.
+One shared request loop reads `/rulings list --json` through the focused session's
+connection-qualified profile route every three seconds. Its exact first line is
+`precedent-log rulings v1`; the entire response is at most 64 KiB. Reads are limited
+to 1 MiB each of ruling and complete event history, with a 4 KiB event-line cap.
+Large or damaged histories show unavailable, never partial totals. At most 50 rows,
+2,000 ruling characters, 20 keys (80 characters each) and 20 completed job IDs per
+row are displayed. A truncation notice identifies omitted rows; detail labels state
+text/job limits. `/rulings status` remains available with its bounded text view.
+Both surfaces show `veto cap reached` when durable policy records two vetoes on a
+task. This is recorded history, not a claim that the card is still running. Policy
+reads are capped at 1 MiB too; malformed or oversized state is unavailable.
 
-Tested against an SDK facade with `node tests/desktop.mjs`, including scope changes,
-stale requests and malformed responses. No live Desktop run or installation is
-claimed. The Python floor remains `>=0.23.0`; the optional Desktop half requires the
-SDK's `focusedSessionOwner`, `profileRoutes`, `requestProfile` and status-bar APIs.
-The earlier manual-copy check above predates this entry; to include it when copying
-a 0.3.0 checkout, copy `desktop/` alongside `precedent_log/`.
+No focus shows `No board in focus`; a missing store shows `No rulings yet` without
+creating it. Closed gateways, stale replies and invalid data show `Unavailable`
+and hide the status item. Only one request sequence can be in flight. Data hides
+at five seconds, checked once a second; focus/profile/source/gateway changes clear
+it immediately. A permanently unresolved SDK operation requires host recovery or
+reload. Confirmation is cleared on a scope or board change. A write already sent
+may finish on its original board; a late reply cannot populate a different scope.
+
+The page uses native HTML controls and the SDK runtime's host React singleton,
+with no build step or added dependencies. It inherits Desktop typography and theme.
+SDK references: `apps/desktop/src/sdk/index.ts:1633` exports route/nav contributions;
+`apps/desktop/src/sdk/runtime.ts:63` supplies SDK and React imports. The built-in
+`plugins/kanban/plugin.tsx:112` uses the same page registration pattern.
+Tested against an SDK facade with `node tests/desktop.mjs`, including rendered page
+states, confirmed retirement, errors, scope changes, stale replies and disposal.
+No live Desktop run or installation is claimed. Keep `requires_hermes >=0.23.0`;
+the optional Desktop half requires the inspected page/nav, status, React and routed
+request APIs. For manual copying, include `desktop/` alongside `precedent_log/`.
+
+Screenshot placeholder: `docs/desktop-rulings.png` will be added after a live capture.
 
 ## Safety and scope
 
@@ -123,7 +142,7 @@ Active rulings for the current profile and board are offered as worker system-pr
 
 Any process able to write this store supplies prompt text and is trusted. Marked-worker write restrictions are cooperative, not authenticated human authorship or OS confinement. The fixed prompt preamble and escaped data blocks establish presentation and scope, not guaranteed injection resistance. Rulings never grant permission for new actions.
 
-Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.3.0; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
+Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.4.0; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
 
 `precedent_log.veto` is relative to this plugin's settings, read through `ctx.get_config`. Invalid values refuse the block check with a clear error. Advisory leaves the prompt section and store guard active, appends matching or cited candidate data to the block reason, and does not create a pending veto.
 
@@ -387,7 +406,7 @@ Held-out candidate selection was 8/20 correct: 7 repeats found, 3 missed, 9 diff
 - Locked JSONL and hashes detect ordinary changes, not a recomputed whole chain or deleted final suffix. Damage quarantines the board. Human `repair --truncate-after N` backs up the complete file and atomically checkpoints a clean prefix, preserves observed retirements/ID high-water, and conservatively retires retained entries after damage. Review before re-adding.
 - Retirement never edits, reopens or blocks tasks. Review cited jobs manually; existing session prompts and completed outputs are not revoked.
 - Analytics faults are visible where possible. Post-commit observer failures can lose observations. Policy-storage failure has a visible process-local fallback; persistence across respawns then cannot be guaranteed.
-- Host isolation, other versions/platforms, other plugin combinations, real-model reliability beyond the three observations above, a board-document baseline and general savings remain untested. No wrapper, search or export surface is included; the Desktop status item has facade coverage only.
+- Host isolation, other versions/platforms, other plugin combinations, real-model reliability beyond the three observations above, a board-document baseline and general savings remain untested. No wrapper, search or export surface is included; the Desktop status item and Rulings page have facade coverage only.
 
 ## How this differs from nearby plugins
 
@@ -415,9 +434,9 @@ Descriptions of the first six entries follow the supplied 2026-11-06 research sn
 
 ## Disclosures (catalog rule 13)
 
-**Python runtime:** no network, model calls, shell execution, credentials or background processes. The optional Desktop item polls read-only RPC through the host-managed gateway connection, which may be remote; it opens no independent connection and reads no credentials. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic deletion policy or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
+**Python runtime:** no network, model calls, shell execution, credentials or background processes. The optional Desktop page polls read-only RPC and sends explicitly confirmed retire commands through the host-managed gateway connection, which may be remote; it opens no independent connection and reads no credentials. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic deletion policy or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
 
-**Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command (`precedent`: add, retire, repair, list, show, verify, stats, cited-by) one bounded prompt section and one native Desktop status item; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced. Version 0.2.2 strengthens the veto text only; it adds no continuation or reclaim mechanism, no hooks and no private helpers.
+**Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command (`precedent`: add, retire, repair, list, show, verify, stats, cited-by) one bounded prompt section and a native Desktop status item plus Rulings page; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced. Version 0.2.2 strengthens the veto text only; it adds no continuation or reclaim mechanism, no hooks and no private helpers.
 
 **Opt-in demo:** reads the supplied Hermes source and local repository; copies only runtime plugin files into an empty lab home; writes config, boards, worker data, artifacts and transcripts. Starts bounded local subprocesses and, in fake mode, a loopback HTTP server. The supplied Python audit-hook checks apply to the in-process harness only. Subprocesses, native network and native file access are outside those checks. This is not an OS sandbox; run the demo in a throwaway home outside any repository. See [demo limits](demo/README.md). Real mode sends task/context data to the explicitly selected provider and can incur its charges. Only the named environment credential is forwarded; its value is redacted from transcripts and never written to config. The adapter uses additional private core Python entrypoints; it is not installed as plugin runtime.
 
@@ -435,7 +454,7 @@ python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 161 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.3.0 result is recorded in [evidence/tests-r18.txt](evidence/tests-r18.txt). Desktop facade checks are separate: `node tests/desktop.mjs`.
+All 169 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.4.0 result is recorded in [evidence/tests-r18.txt](evidence/tests-r19.txt). Desktop facade checks are separate: `node tests/desktop.mjs`.
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, local hostname tokens, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r17 REDACTIONS.md](evidence/live-r17/REDACTIONS.md), [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 

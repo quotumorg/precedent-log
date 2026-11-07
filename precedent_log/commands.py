@@ -8,7 +8,7 @@ import sys
 
 from .guard import require_human
 from .stats import Events
-from .store import Store
+from .store import Store, call_board
 
 
 def setup_cli(parser):
@@ -131,7 +131,14 @@ def ruling(raw_args, *, platform=None, session_key=None, **kwargs):
         # These keywords are forwarded by plugin_command_dispatch.py:11-35 at 2bd378ed.
         author = f"{platform}:{session_key}" if platform and session_key else "slash"
         raw = raw_args.strip()
-        store = Store()
+        board = None
+        if raw.startswith("retire "):
+            found_board = re.search(r'\s+--board\s+([a-z0-9][a-z0-9_-]{0,63})$', raw)
+            if found_board:
+                board, raw = found_board[1], raw[:found_board.start()]
+            elif '--board' in raw:
+                raise ValueError('Use --board <board> at the end of the retirement command')
+        store = Store(call_board(board)) if board is not None else Store()
         if raw.startswith("add "):
             question, separator, answer = raw[4:].partition("=>")
             if not separator:
@@ -163,6 +170,9 @@ def ruling(raw_args, *, platform=None, session_key=None, **kwargs):
 
 
 def rulings(raw_args="", **kwargs):
+    if raw_args.strip() == "list --json":
+        from .desktop import snapshot
+        return snapshot()
     if raw_args.strip() == "status":
         from .status import status
         return status()

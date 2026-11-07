@@ -75,6 +75,27 @@ def last_veto(events, entries):
     return None
 
 
+def capped_rulings(store):
+    """Observe durable policy without acquiring/creating a lock or updating it."""
+    path = store.path.with_name(store.board + '.policy.json')
+    try:
+        raw, _ = bounded_read(path, STORE_BYTES)
+    except FileNotFoundError:
+        return set()
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError('invalid policy')
+    capped = set()
+    for row in data.values():
+        if (not isinstance(row, dict) or type(row.get('vetoes')) is not int
+                or not 0 <= row['vetoes'] <= 2 or not isinstance(row.get('candidates'), list)
+                or any(not isinstance(rid, str) or not STATUS_ID.fullmatch(rid) for rid in row['candidates'])):
+            raise ValueError('invalid policy')
+        if row['vetoes'] == 2:
+            capped.update(row['candidates'])
+    return capped
+
+
 def status():
     try:
         store = Store(call_board())
@@ -84,6 +105,8 @@ def status():
             raise ValueError('rulings unavailable')
         veto = last_veto(Events(store.board), state.entries)
         output = f'{HEADER}\nrulings={len(state.active)}; {veto or "no veto yet"}'
+        if capped_rulings(store):
+            output += '; veto cap reached'
         if len(output) > OUTPUT_CHARS:
             raise ValueError('status too long')
         return output
