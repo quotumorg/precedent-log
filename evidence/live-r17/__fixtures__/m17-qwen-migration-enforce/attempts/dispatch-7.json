@@ -1,0 +1,40 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_1d54652a",
+        "default",
+        "<run-root>/m17-qwen-migration-enforce/workspaces/T4"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [
+      "t_1d54652a"
+    ],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_1d54652a",
+      "run_id": 7,
+      "pid": 23074,
+      "spec_file": "<run-root>/m17-qwen-migration-enforce/attempts/007-t_1d54652a-spec.json",
+      "result_file": "<run-root>/m17-qwen-migration-enforce/attempts/007-t_1d54652a-result.json",
+      "worker_log": "<run-root>/m17-qwen-migration-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_1d54652a.log",
+      "exit_code": 1
+    }
+  ]
+}

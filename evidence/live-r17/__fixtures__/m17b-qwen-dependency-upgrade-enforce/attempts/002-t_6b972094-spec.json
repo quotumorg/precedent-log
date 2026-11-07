@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "custom",
+  "model": "qwen-3-8-flash",
+  "base_url": "<provider-endpoint>",
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17b-qwen-dependency-upgrade-enforce/attempts",
+  "dispatch_result": "<run-root>/m17b-qwen-dependency-upgrade-enforce/attempts/dispatch-2.json",
+  "task_id": "t_6b972094",
+  "run_id": 2,
+  "workspace": "<run-root>/m17b-qwen-dependency-upgrade-enforce/workspaces/T1",
+  "session_id": "demo-t_6b972094-2",
+  "result_file": "<run-root>/m17b-qwen-dependency-upgrade-enforce/attempts/002-t_6b972094-result.json",
+  "prompt": "Work Kanban task t_6b972094.\nPlan the API client dependency upgrade\nWrite dependency-plan.md: a local dependency proposal listing the chosen version, lockfile update, compatibility checks and rollback steps. First resolve: For the httpx upgrade, pin version 0.28.1 or take latest? If there is no applicable active ruling or human answer on this card, call kanban_block with kind needs_input and that exact question. After a human answer, use kanban_show to read it, write the draft and call kanban_complete with the artifact path. If reusing a ruling, cite its ID in the file and completion summary. Do not install packages, fetch registries, edit dependency files or change application code.\nCard comments: [{\"id\": 1, \"task_id\": \"t_6b972094\", \"author\": \"default\", \"body\": \"UNBLOCK: Pin httpx to 0.28.1 for this dependency upgrade. Changes to application behavior need a separate decision.\", \"created_at\": 1794060692}]\nWorkspace: <run-root>/m17b-qwen-dependency-upgrade-enforce/workspaces/T1\nUse the real kanban tools to finish or block."
+}

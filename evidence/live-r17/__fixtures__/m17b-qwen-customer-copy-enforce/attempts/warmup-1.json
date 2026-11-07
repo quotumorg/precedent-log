@@ -1,0 +1,1 @@
+{"provider": "custom", "model": "qwen-3-8-flash", "base_url": "<provider-endpoint>", "timeout": 300.0, "session_id": "warmup-1", "workspace": "<run-root>/m17b-qwen-customer-copy-enforce", "result_file": "<run-root>/m17b-qwen-customer-copy-enforce/attempts/warmup-1-result.json"}

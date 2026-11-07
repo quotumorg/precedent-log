@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "custom",
+  "model": "qwen-3-8-flash",
+  "base_url": "<provider-endpoint>",
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17b-qwen-customer-copy-enforce/attempts",
+  "dispatch_result": "<run-root>/m17b-qwen-customer-copy-enforce/attempts/dispatch-1.json",
+  "task_id": "t_347442a2",
+  "run_id": 1,
+  "workspace": "<run-root>/m17b-qwen-customer-copy-enforce/workspaces/T1",
+  "session_id": "demo-t_347442a2-1",
+  "result_file": "<run-root>/m17b-qwen-customer-copy-enforce/attempts/001-t_347442a2-result.json",
+  "prompt": "Work Kanban task t_347442a2.\nDraft the checkout confirmation copy\nWrite confirmation-copy.md: a local customer-facing copy draft using the selected locale and tone, with a short editorial checklist. First resolve: For checkout copy, use calm British English or playful American English? If there is no applicable active ruling or human answer on this card, call kanban_block with kind needs_input and that exact question. After a human answer, use kanban_show to read it, write the draft and call kanban_complete with the artifact path. If reusing a ruling, cite its ID in the file and completion summary. Do not publish, send messages, change product claims or edit a live website.\nCard comments: []\nWorkspace: <run-root>/m17b-qwen-customer-copy-enforce/workspaces/T1\nUse the real kanban tools to finish or block."
+}

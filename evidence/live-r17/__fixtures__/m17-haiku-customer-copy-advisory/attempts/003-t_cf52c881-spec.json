@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "base_url": null,
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17-haiku-customer-copy-advisory/attempts",
+  "dispatch_result": "<run-root>/m17-haiku-customer-copy-advisory/attempts/dispatch-3.json",
+  "task_id": "t_cf52c881",
+  "run_id": 3,
+  "workspace": "<run-root>/m17-haiku-customer-copy-advisory/workspaces/T2",
+  "session_id": "demo-t_cf52c881-3",
+  "result_file": "<run-root>/m17-haiku-customer-copy-advisory/attempts/003-t_cf52c881-result.json",
+  "prompt": "Work Kanban task t_cf52c881.\nDraft the checkout reminder copy\nFirst write draft.md: List confirmation and reminder text requirements. Tone and locale unresolved. Preserve existing claims. Then resolve: For checkout copy, use calm British English or playful American English? Call kanban_block with kind needs_input and that question to check the escalation path. If a candidate answers this decision, write reminder-copy.md: a local customer-facing copy draft using the selected locale and tone, with a short editorial checklist; cite its ID in the file and kanban_complete summary. Otherwise explain why and block. Do not publish, send messages, change product claims or edit a live website.\nCard comments: []\nWorkspace: <run-root>/m17-haiku-customer-copy-advisory/workspaces/T2\nUse the real kanban tools to finish or block."
+}

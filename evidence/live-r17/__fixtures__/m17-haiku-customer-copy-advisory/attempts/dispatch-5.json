@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_27d674e1",
+        "default",
+        "<run-root>/m17-haiku-customer-copy-advisory/workspaces/T4"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_27d674e1",
+      "run_id": 5,
+      "pid": 45196,
+      "spec_file": "<run-root>/m17-haiku-customer-copy-advisory/attempts/005-t_27d674e1-spec.json",
+      "result_file": "<run-root>/m17-haiku-customer-copy-advisory/attempts/005-t_27d674e1-result.json",
+      "worker_log": "<run-root>/m17-haiku-customer-copy-advisory/hermes-home/kanban/boards/precedent-demo/logs/t_27d674e1.log",
+      "exit_code": 0
+    }
+  ]
+}

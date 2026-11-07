@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_b36a1a2f",
+        "default",
+        "<run-root>/m17b-qwen-log-retention-enforce/workspaces/T1"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_b36a1a2f",
+      "run_id": 2,
+      "pid": 62908,
+      "spec_file": "<run-root>/m17b-qwen-log-retention-enforce/attempts/002-t_b36a1a2f-spec.json",
+      "result_file": "<run-root>/m17b-qwen-log-retention-enforce/attempts/002-t_b36a1a2f-result.json",
+      "worker_log": "<run-root>/m17b-qwen-log-retention-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_b36a1a2f.log",
+      "exit_code": 0
+    }
+  ]
+}

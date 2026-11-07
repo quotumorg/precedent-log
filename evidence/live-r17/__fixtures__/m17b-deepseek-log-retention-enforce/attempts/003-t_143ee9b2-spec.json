@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "custom",
+  "model": "deepseek-v4-pro",
+  "base_url": "<provider-endpoint>",
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17b-deepseek-log-retention-enforce/attempts",
+  "dispatch_result": "<run-root>/m17b-deepseek-log-retention-enforce/attempts/dispatch-3.json",
+  "task_id": "t_143ee9b2",
+  "run_id": 3,
+  "workspace": "<run-root>/m17b-deepseek-log-retention-enforce/workspaces/T2",
+  "session_id": "demo-t_143ee9b2-3",
+  "result_file": "<run-root>/m17b-deepseek-log-retention-enforce/attempts/003-t_143ee9b2-result.json",
+  "prompt": "Work Kanban task t_143ee9b2.\nDraft the worker diagnostic log export plan\nFirst write draft.md: List existing diagnostic fields, expiry verification and deletion audit steps. Retention unresolved. Then resolve: For diagnostic logs in the export, set retention to 7 days or 30 days? Call kanban_block with kind needs_input and that question to check the escalation path. If a candidate answers this decision, write worker-export.md: a local export plan stating retention, expiry verification, deletion procedure and an audit checklist; cite its ID in the file and kanban_complete summary. Otherwise explain why and block. Do not read customer data, export logs, alter retention settings or delete files.\nCard comments: []\nWorkspace: <run-root>/m17b-deepseek-log-retention-enforce/workspaces/T2\nUse the real kanban tools to finish or block."
+}

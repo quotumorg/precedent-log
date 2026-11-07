@@ -1,0 +1,1 @@
+{"board": "precedent-demo", "provider": "custom", "model": "qwen-3-8-flash", "base_url": "<provider-endpoint>", "timeout": 180.0, "attempt_dir": "<run-root>/m17b-qwen-log-retention-enforce/attempts", "dispatch_result": "<run-root>/m17b-qwen-log-retention-enforce/attempts/dispatch-9.json"}

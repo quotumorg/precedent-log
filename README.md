@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 150 passing](https://img.shields.io/badge/offline_tests-150_passing-2b2a6b)](evidence/tests-r16.txt)
+[![offline tests: 152 passing](https://img.shields.io/badge/offline_tests-152_passing-2b2a6b)](evidence/tests-r17.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -151,18 +151,46 @@ This is board context, not matcher-filtered context: newest IDs first, at most 2
 ## Verify recorded evidence after cloning, no API key
 
 ```sh
-git clone https://github.com/quotumorg/precedent-log && cd precedent-log && git checkout --detach 363a5ad8c47cfdbf2c8af32ff8163cf0f3c7c458
+git clone https://github.com/quotumorg/precedent-log && cd precedent-log
+python3 -B evidence/live-r17/recompute.py --check-readme
 python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 150 offline tests pass; the [verification](#verification) commands rerun them.
+This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 152 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
 ## Live run
 
-### Current evidence: 9a06174 (2026-11-07)
+### Multi-fixture runs on ee78019
+
+Sixteen captures used the public codeload tarball of `ee78019987a7d9ce81671f4a6e6c0c9e629b2c7d` outside Git, Hermes v0.23.0 at `2bd378ed`, worker timeout 180 seconds and warm-up timeout 300 seconds. Haiku is `claude-haiku-5-5` via the Anthropic API; `deepseek-v4-pro` and `qwen-3-8-flash` used Venice (OpenAI-compatible endpoint).
+
+Each cell shows the T2 outcome and the full run's harness failure count. Fifteen cells have model observations; one is unavailable because of provider billing failure.
+
+| Fixture | Haiku hook (enforce) | Haiku prompt only (advisory) | DeepSeek hook | qwen hook |
+| --- | --- | --- | --- | --- |
+| migration | done via veto; 0 failures | done via prompt; 0 failures | done via veto; 3 failures | done via veto; 1 failure |
+| dependency-upgrade | done via veto; 0 failures | blocked; 0 failures | done via veto; 0 failures | done via prompt; 0 failures |
+| customer-copy | done via veto; 0 failures | done via prompt; 0 failures | done via veto; 0 failures | done via veto; 0 failures |
+| log-retention | done via veto; 0 failures | done via prompt; 0 failures | done via veto; 0 failures | not run (provider 402) |
+
+Haiku: hook T2 completed 6/6; prompt only 3/6 (including the r14 migration runs).
+
+T3/T4 on ee78019: Haiku T3: 8 blocked needs_input; T4: 8 blocked needs_input. DeepSeek T3: 3 blocked needs_input, 1 provider 402; T4: 3 blocked needs_input, 1 provider 402. qwen T3: 3 blocked needs_input, 1 excluded billing run; T4: 2 blocked needs_input, 1 excluded billing run, 1 provider 402.
+
+DeepSeek migration completed T2 before HTTP 402 affected T3/T4 (three harness failures); qwen migration completed T2 and T3 before HTTP 402 affected T4 (one failure). Those later billing failures are not evidence of model blocking. The qwen log-retention rerun hit HTTP 402 on T2/T3/T4 (five harness failures) and is retained only for audit, excluded from model evidence. `not run (provider 402)` means no usable observation, not that no process started.
+
+Excluded: the six initial `m17-{deepseek,qwen}-{dependency-upgrade,customer-copy,log-retention}-enforce` runs returned HTTP 402 spend-limit errors on every worker attempt; they are not model evidence and are not copied.
+
+Run mapping: Haiku uses `m17-haiku-<fixture>-<mode>`; DeepSeek/qwen migration uses `m17-<model>-migration-enforce`; their new fixtures use `m17b-<model>-<fixture>-enforce`. All six reruns are included, including the billing-failed qwen capture. All warm-up starts, attempt exits, failures and workspace outputs in these captures are retained.
+
+Limits: one run per cell, fixtures written by us, ruling keys chosen before the runs, matcher unchanged. The cumulative Haiku line adds two enforce and two advisory migration runs from r14 on 9a06174, so it spans two plugin revisions. T2 requests escalation and T3 instructs the worker to reject a nearby question outside the ruling; these observations are not a reliability estimate or safety evaluation. The local dispatch adapter is not the standard gateway. No real B2 is exercised, and the no-edit stall remains. Citation path labels describe tool traces, not internal reasoning.
+
+[Redacted captures and replacement counts](evidence/live-r17/REDACTIONS.md) cover 517 files; Hermes homes are excluded. Run `python3 -B evidence/live-r17/recompute.py --check-readme` to verify the manifest, original fixture digest, attempts, warm-ups, output files, table and summary lines offline. Source provenance is supplied by the capture owner; hashes cover public bytes, not authorship.
+
+### Earlier evidence: r14 on 9a06174 (2026-11-07)
 
 Six real-model runs used the public codeload tarball of `9a06174b65bb300a373581882393150fe503e2de` outside any Git tree, Hermes v0.23.0 at `2bd378ed`, and `demo/run.py` (worker timeout 180 seconds, warm-up timeout 300 seconds). Haiku is `claude-haiku-5-5` via the Anthropic API; `deepseek-v4-pro` used Venice (OpenAI-compatible endpoint).
 
@@ -366,13 +394,14 @@ Set `HERMES_SOURCE` to the prepared pinned Hermes source and `HERMES_PYTHON` to 
 ```sh
 HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
   "$HERMES_PYTHON" -B tests/run_offline.py
+python3 -B evidence/live-r17/recompute.py --check-readme
 python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 150 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.2 result is recorded in [evidence/tests-r16.txt](evidence/tests-r16.txt).
+All 152 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.2 result is recorded in [evidence/tests-r17.txt](evidence/tests-r17.txt).
 
-Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
+Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r17 REDACTIONS.md](evidence/live-r17/REDACTIONS.md), [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 
 Historical [r5 offline](evidence/tests-r5.txt) and [r4 full-suite](tests/evidence/tests-r4.txt) logs are retained with paths sanitized. To run the network-using suite in a permitted environment, use `"$HERMES_PYTHON" -m unittest discover -s tests -v` with the same `HERMES_SOURCE`.
 

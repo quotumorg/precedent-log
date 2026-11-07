@@ -1,0 +1,40 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_df15e813",
+        "default",
+        "<run-root>/m17-deepseek-migration-enforce/workspaces/T3"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [
+      "t_df15e813"
+    ],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_df15e813",
+      "run_id": 6,
+      "pid": 23036,
+      "spec_file": "<run-root>/m17-deepseek-migration-enforce/attempts/006-t_df15e813-spec.json",
+      "result_file": "<run-root>/m17-deepseek-migration-enforce/attempts/006-t_df15e813-result.json",
+      "worker_log": "<run-root>/m17-deepseek-migration-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_df15e813.log",
+      "exit_code": 1
+    }
+  ]
+}

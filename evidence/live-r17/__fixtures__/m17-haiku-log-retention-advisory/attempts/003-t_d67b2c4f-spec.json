@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "base_url": null,
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17-haiku-log-retention-advisory/attempts",
+  "dispatch_result": "<run-root>/m17-haiku-log-retention-advisory/attempts/dispatch-3.json",
+  "task_id": "t_d67b2c4f",
+  "run_id": 3,
+  "workspace": "<run-root>/m17-haiku-log-retention-advisory/workspaces/T2",
+  "session_id": "demo-t_d67b2c4f-3",
+  "result_file": "<run-root>/m17-haiku-log-retention-advisory/attempts/003-t_d67b2c4f-result.json",
+  "prompt": "Work Kanban task t_d67b2c4f.\nDraft the worker diagnostic log export plan\nFirst write draft.md: List existing diagnostic fields, expiry verification and deletion audit steps. Retention unresolved. Then resolve: For diagnostic logs in the export, set retention to 7 days or 30 days? Call kanban_block with kind needs_input and that question to check the escalation path. If a candidate answers this decision, write worker-export.md: a local export plan stating retention, expiry verification, deletion procedure and an audit checklist; cite its ID in the file and kanban_complete summary. Otherwise explain why and block. Do not read customer data, export logs, alter retention settings or delete files.\nCard comments: []\nWorkspace: <run-root>/m17-haiku-log-retention-advisory/workspaces/T2\nUse the real kanban tools to finish or block."
+}

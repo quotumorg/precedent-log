@@ -36,7 +36,7 @@ def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5")
     for original, placeholder in prefixes:
         if not original or not re.fullmatch(r'<[a-z-]+>', placeholder):
             raise ValueError('Prefixes need a nonempty source and a placeholder label')
-    if edition not in ('r5', 'r14'):
+    if edition not in ('r5', 'r14', 'r17'):
         raise ValueError('Unknown evidence edition')
     sources = run_sources or [(run, source / run) for run in RUNS]
     if len({name for name, _ in sources}) != len(sources):
@@ -89,6 +89,15 @@ def copy_evidence(source, destination, prefixes, run_sources=None, edition="r5")
         ('Three runs, one model family (Claude Haiku 5.5 and Sonnet 5.5), warm-up used, no real B2. The supplied r5 run used a clean archive of bee2e2c outside Git. All three first warm-up starts exited 1 before a successful retry; all worker exits were 0. T3 explicitly instructs rejection of non-matching rulings, so it is an instruction-following observation, not a safety evaluation. The local dispatch adapter is not the standard gateway. T2 path labels describe tool traces, not internal reasoning. In the discarded private r3 runs, one Haiku T2 took the prompt path; it is not public evidence.' if edition == 'r5' else
          'Six runs, two model families, one fixture, no real B2. Supplied provenance: public codeload export of 9a06174 outside Git, Hermes v0.23.0 at 2bd378ed, demo/run.py, worker timeout 180 seconds and warm-up timeout 300 seconds. Five Haiku runs used the Anthropic API; deepseek-v4-pro used Venice (OpenAI-compatible endpoint). All five Haiku first warm-ups exited 1, then 0; the DeepSeek warm-up exited 0. All 30 worker attempts exited 0. Advisory Run 2 left T2 blocked despite writing its final file and recorded one harness failure; the other five runs recorded none. Both advisory T2 outcomes remain blocked. T2 explicitly requests a block to test escalation; T3 instructs rejection of non-matching rulings. These are fixture-specific observations, not a reliability estimate or safety evaluation. The local dispatch adapter is not the standard gateway. Path labels describe tool traces, not internal reasoning. Provenance is supplied by the capture owner, not authenticated by the manifest.'), '',
     ]
+    if edition == 'r17':
+        lines[-2] = ('Sixteen captures across four fixtures: eight Haiku, four DeepSeek, four qwen. '
+                     'One qwen capture has HTTP 402 during T2 and is retained only for audit, not model evidence. '
+                     'Supplied provenance: public codeload export of ee78019 outside Git, Hermes v0.23.0 at 2bd378ed, '
+                     'worker timeout 180 seconds and warm-up timeout 300 seconds. '
+                     'Haiku used the Anthropic API; deepseek-v4-pro and qwen-3-8-flash used Venice (OpenAI-compatible endpoint). '
+                     'All starts and failures in included captures are retained. Provenance is supplied by the capture owner; '
+                     'the manifest authenticates neither authorship nor the source checkout. '
+                     'See README for per-stage billing exclusions, fixture limits and observed outcomes.')
     destination.joinpath('REDACTIONS.md').write_text('\n'.join(lines))
     return len(manifest)
 
@@ -101,6 +110,6 @@ if __name__ == '__main__':
                         metavar=('PRIVATE_PREFIX', 'PLACEHOLDER'))
     parser.add_argument('--run-source', nargs=2, action='append', metavar=('RUN', 'DIRECTORY'),
                         help='Explicit run directories; replaces the default r5 runs')
-    parser.add_argument('--edition', choices=('r5', 'r14'), default='r5')
+    parser.add_argument('--edition', choices=('r5', 'r14', 'r17'), default='r5')
     args = parser.parse_args()
     print(f'Copied {copy_evidence(args.source, args.destination, args.prefix, args.run_source, args.edition)} files')

@@ -118,6 +118,27 @@ class PublicationTests(unittest.TestCase):
         self.assertIn('Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 0', table)
         self.assertNotIn('`prompt`', table)
 
+    def test_multi_fixture_evidence_recomputes_outcomes_and_summary(self):
+        module = recompute('r17')
+        text = module.check_readme()
+        self.assertEqual(module.verify_files(), 517)
+        self.assertIn('hook T2 completed 6/6; prompt only 3/6', text)
+        self.assertIn('done via veto; 3 failures | done via veto; 1 failure', text)
+        self.assertIn('not run (provider 402)', text)
+        self.assertIn('DeepSeek T3: 3 blocked needs_input, 1 provider 402', text)
+
+    def test_billing_capture_cannot_be_counted_as_model_completion(self):
+        module = recompute('r17')
+        data = module.capture('m17b-qwen-log-retention-enforce')
+        self.assertTrue(module.excluded(data))
+        # Even a misleading final card state must not turn a billing failure into evidence.
+        data['cards']['T2']['state'] = 'done'
+        self.assertEqual(module.outcome(data), 'not run (provider 402)')
+        data = module.capture('m17-deepseek-migration-enforce')
+        self.assertFalse(module.excluded(data))
+        self.assertFalse(any(module.billing(a) for a in data['attempts'] if a['label'] == 'T2'))
+        self.assertTrue(any(module.billing(a) for a in data['attempts'] if a['label'] == 'T3'))
+
     def test_manifest_rejects_changed_bytes_and_unlisted_files(self):
         module = recompute()
         with tempfile.TemporaryDirectory() as temp:

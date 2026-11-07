@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_411df1ae",
+        "default",
+        "<run-root>/m17b-deepseek-dependency-upgrade-enforce/workspaces/T1"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_411df1ae",
+      "run_id": 2,
+      "pid": 53246,
+      "spec_file": "<run-root>/m17b-deepseek-dependency-upgrade-enforce/attempts/002-t_411df1ae-spec.json",
+      "result_file": "<run-root>/m17b-deepseek-dependency-upgrade-enforce/attempts/002-t_411df1ae-result.json",
+      "worker_log": "<run-root>/m17b-deepseek-dependency-upgrade-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_411df1ae.log",
+      "exit_code": 0
+    }
+  ]
+}

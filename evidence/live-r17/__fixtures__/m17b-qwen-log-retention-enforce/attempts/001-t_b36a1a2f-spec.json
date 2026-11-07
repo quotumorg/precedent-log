@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "custom",
+  "model": "qwen-3-8-flash",
+  "base_url": "<provider-endpoint>",
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17b-qwen-log-retention-enforce/attempts",
+  "dispatch_result": "<run-root>/m17b-qwen-log-retention-enforce/attempts/dispatch-1.json",
+  "task_id": "t_b36a1a2f",
+  "run_id": 1,
+  "workspace": "<run-root>/m17b-qwen-log-retention-enforce/workspaces/T1",
+  "session_id": "demo-t_b36a1a2f-1",
+  "result_file": "<run-root>/m17b-qwen-log-retention-enforce/attempts/001-t_b36a1a2f-result.json",
+  "prompt": "Work Kanban task t_b36a1a2f.\nDraft the service diagnostic log export plan\nWrite service-export.md: a local export plan stating retention, expiry verification, deletion procedure and an audit checklist. First resolve: For diagnostic logs in the export, set retention to 7 days or 30 days? If there is no applicable active ruling or human answer on this card, call kanban_block with kind needs_input and that exact question. After a human answer, use kanban_show to read it, write the draft and call kanban_complete with the artifact path. If reusing a ruling, cite its ID in the file and completion summary. Do not read customer data, export logs, alter retention settings or delete files.\nCard comments: []\nWorkspace: <run-root>/m17b-qwen-log-retention-enforce/workspaces/T1\nUse the real kanban tools to finish or block."
+}

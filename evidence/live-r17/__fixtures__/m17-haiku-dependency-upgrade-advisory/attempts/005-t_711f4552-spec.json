@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "base_url": null,
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17-haiku-dependency-upgrade-advisory/attempts",
+  "dispatch_result": "<run-root>/m17-haiku-dependency-upgrade-advisory/attempts/dispatch-5.json",
+  "task_id": "t_711f4552",
+  "run_id": 5,
+  "workspace": "<run-root>/m17-haiku-dependency-upgrade-advisory/workspaces/T4",
+  "session_id": "demo-t_711f4552-5",
+  "result_file": "<run-root>/m17-haiku-dependency-upgrade-advisory/attempts/005-t_711f4552-result.json",
+  "prompt": "Work Kanban task t_711f4552.\nPlan the batch client dependency upgrade after retirement\nFirst write draft.md: List the current httpx constraint, lockfile and compatibility checks. Version choice unresolved. Resolve: For the httpx upgrade, pin version 0.28.1 or take latest? Call kanban_block with kind needs_input and that question. Use only active rulings or an answer on this card, never another card's answer or a retired ruling. If none answers it, block. Otherwise write batch-upgrade.md: a local dependency proposal listing the chosen version, lockfile update, compatibility checks and rollback steps; cite the ruling in the file and kanban_complete summary. Do not install packages, fetch registries, edit dependency files or change application code.\nCard comments: []\nWorkspace: <run-root>/m17-haiku-dependency-upgrade-advisory/workspaces/T4\nUse the real kanban tools to finish or block."
+}

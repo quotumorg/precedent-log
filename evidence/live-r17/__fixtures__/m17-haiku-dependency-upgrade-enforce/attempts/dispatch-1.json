@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_f6281a50",
+        "default",
+        "<run-root>/m17-haiku-dependency-upgrade-enforce/workspaces/T1"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_f6281a50",
+      "run_id": 1,
+      "pid": 24816,
+      "spec_file": "<run-root>/m17-haiku-dependency-upgrade-enforce/attempts/001-t_f6281a50-spec.json",
+      "result_file": "<run-root>/m17-haiku-dependency-upgrade-enforce/attempts/001-t_f6281a50-result.json",
+      "worker_log": "<run-root>/m17-haiku-dependency-upgrade-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_f6281a50.log",
+      "exit_code": 0
+    }
+  ]
+}

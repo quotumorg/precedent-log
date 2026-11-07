@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "base_url": null,
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17-haiku-customer-copy-enforce/attempts",
+  "dispatch_result": "<run-root>/m17-haiku-customer-copy-enforce/attempts/dispatch-2.json",
+  "task_id": "t_a024651b",
+  "run_id": 2,
+  "workspace": "<run-root>/m17-haiku-customer-copy-enforce/workspaces/T1",
+  "session_id": "demo-t_a024651b-2",
+  "result_file": "<run-root>/m17-haiku-customer-copy-enforce/attempts/002-t_a024651b-result.json",
+  "prompt": "Work Kanban task t_a024651b.\nDraft the checkout confirmation copy\nWrite confirmation-copy.md: a local customer-facing copy draft using the selected locale and tone, with a short editorial checklist. First resolve: For checkout copy, use calm British English or playful American English? If there is no applicable active ruling or human answer on this card, call kanban_block with kind needs_input and that exact question. After a human answer, use kanban_show to read it, write the draft and call kanban_complete with the artifact path. If reusing a ruling, cite its ID in the file and completion summary. Do not publish, send messages, change product claims or edit a live website.\nCard comments: [{\"id\": 1, \"task_id\": \"t_a024651b\", \"author\": \"default\", \"body\": \"Checked the card (no comments, no human answer) and searched the task tree for files matching *ruling* : no active ruling found. Blocking for the locale/tone decision.\", \"created_at\": 1794059365}, {\"id\": 2, \"task_id\": \"t_a024651b\", \"author\": \"default\", \"body\": \"UNBLOCK: Use calm British English for checkout copy. Keep existing product claims; new promises require separate approval.\", \"created_at\": 1794059370}]\nWorkspace: <run-root>/m17-haiku-customer-copy-enforce/workspaces/T1\nUse the real kanban tools to finish or block."
+}

@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_4506822f",
+        "default",
+        "<run-root>/m17b-deepseek-log-retention-enforce/workspaces/T3"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_4506822f",
+      "run_id": 4,
+      "pid": 55983,
+      "spec_file": "<run-root>/m17b-deepseek-log-retention-enforce/attempts/004-t_4506822f-spec.json",
+      "result_file": "<run-root>/m17b-deepseek-log-retention-enforce/attempts/004-t_4506822f-result.json",
+      "worker_log": "<run-root>/m17b-deepseek-log-retention-enforce/hermes-home/kanban/boards/precedent-demo/logs/t_4506822f.log",
+      "exit_code": 0
+    }
+  ]
+}

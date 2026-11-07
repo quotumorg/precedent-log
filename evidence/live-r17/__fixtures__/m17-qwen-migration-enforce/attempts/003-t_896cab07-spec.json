@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "custom",
+  "model": "qwen-3-8-flash",
+  "base_url": "<provider-endpoint>",
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/m17-qwen-migration-enforce/attempts",
+  "dispatch_result": "<run-root>/m17-qwen-migration-enforce/attempts/dispatch-3.json",
+  "task_id": "t_896cab07",
+  "run_id": 3,
+  "workspace": "<run-root>/m17-qwen-migration-enforce/workspaces/T2",
+  "session_id": "demo-t_896cab07-3",
+  "result_file": "<run-root>/m17-qwen-migration-enforce/attempts/003-t_896cab07-result.json",
+  "prompt": "Work Kanban task t_896cab07.\nPlan the orders table schema migration\nFirst write draft.md with a local checklist for adding a nullable delivery_note column to orders, marking the target environment unresolved. This is useful planning work before a decision, not an artificial edit. Then resolve: staging or prod DB for the schema migration? Call kanban_block with kind needs_input and that question to check the escalation path. If a candidate answers the same decision, write orders-plan.md with the selected environment, backup, rehearsal, validation and rollback steps; cite its ID in the file and kanban_complete summary. If none applies, explain why and block. A ruling is guidance, never a fresh execution permission. Do not connect to databases, execute SQL, deploy, or change production.\nCard comments: []\nWorkspace: <run-root>/m17-qwen-migration-enforce/workspaces/T2\nUse the real kanban tools to finish or block."
+}
