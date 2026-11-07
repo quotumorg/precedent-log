@@ -119,6 +119,8 @@ with kbc.connect_closing() as conn:
     args = {'reason': 'staging prod migrations', 'kind': 'needs_input'}
     result = json.loads(handle_function_call('kanban_block', args, **ids))
     assert 'candidate rulings' in result['error'], result
+    assert 'Continue in this turn; do not end the turn' in result['error']
+    assert 'even if you have made no file edits' in result['error']
     transcript = [
         {'role': 'assistant', 'tool_calls': [{'id': 'call1', 'function': {'name': 'kanban_block', 'arguments': json.dumps(args)}}]},
         {'role': 'tool', 'name': 'kanban_block', 'tool_call_id': 'call1', 'content': json.dumps(result)},

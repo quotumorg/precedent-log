@@ -118,7 +118,10 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
                          for rid in candidates if rid in rows)
             lines.append("If applicable, follow the ruling and call kanban_complete with 'per precedent P-n' "
                          "in the summary. Otherwise call kanban_block with 'no precedent applies: ...' "
-                         "and explain each candidate. The card is still running.")
+                         "and explain each candidate. The card is still running. "
+                         "Continue in this turn; do not end the turn with final text or a promise. "
+                         "Make the next tool call now, even if you have made no file edits. "
+                         "Complete only after doing the required work; do not create a dummy edit to trigger continuation.")
             lines.extend("[precedent-log] " + fault for fault in faults)
             return {"action": "block", "message": "\n".join(lines)}
         warning = ("escalated despite citing an already answering ruling " if cited and not invalid
