@@ -1,12 +1,12 @@
 # precedent-log, a Hermes Agent plugin
 
-Answer a Kanban worker's question once. Later workers on the same board reuse your ruling instead of asking again.
+Save a ruling for one Hermes profile and Kanban board. Later workers can consult it before asking the same question. A hook checks citation or explanation markers on eligible `kanban_block` calls.
 
 ![Precedent Log for Hermes Agent: answer once, later jobs check the ruling](docs/readme-1600x600.png)
 
 1. **Ask.** A worker blocks on a decision: "staging or prod?"
-2. **Ruling.** You answer once and save the answer as ruling P-1 for that board.
-3. **Reuse.** The next worker with the same decision reads P-1, cites it and finishes. No second interruption.
+2. **Ruling.** Save the answer as P-1, then separately unblock the original card. Saving a ruling does not unblock it.
+3. **Reuse.** A later worker can cite P-1 and continue, or explain why it does not apply. Completion and fewer interruptions are not guaranteed.
 
 Rulings are guidance for matching questions, never permission for new actions.
 
@@ -36,6 +36,7 @@ The copy path installs just the runtime plugin and was checked offline:
 
 ```sh
 git clone https://github.com/quotumorg/precedent-log
+git -C precedent-log checkout --detach 363a5ad8c47cfdbf2c8af32ff8163cf0f3c7c458
 export HERMES_HOME=/path/to/your/chosen-profile
 mkdir -p "$HERMES_HOME/plugins/precedent-log"
 cp -R precedent-log/plugin.yaml precedent-log/__init__.py precedent-log/LICENSE \
@@ -80,7 +81,7 @@ When finished with the trial, use `hermes precedent retire P-1 --board default -
 
 ## Safety and scope
 
-Active rulings for the current profile and board appear in the worker's system prompt. When a worker tries to ask a human with `kanban_block`, the backstop checks matching or cited rulings and explanation text and can refuse that block up to twice (a veto), even when the reason cites the answer. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
+Active rulings for the current profile and board are offered as worker system-prompt context, capped at 20 rows and 4,000 characters; core's aggregate plugin budget can omit the section. When a worker tries to ask a human with `kanban_block`, the backstop checks matching or cited rulings and explanation text and can refuse that block up to twice (a veto), even when the reason cites the answer. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
 
 `precedent_log.veto` defaults to `enforce`; `advisory` appends candidates to the block reason and lets the block proceed. In enforce mode, a worker that made no file edits can stop with its card still running (the B2 test case); recovery depends on core dead-worker recovery and retry settings, with no promised deadline. Advisory avoids this veto path.
 
@@ -147,11 +148,10 @@ This is board context, not matcher-filtered context: newest IDs first, at most 2
 
 `repair --truncate-after N` is manual recovery: it backs up the full log and retains a verified prefix through physical line N. After damage it conservatively retires retained rulings and preserves observed IDs/retirements. Read `hermes precedent repair --help` and review the log before choosing N; there is no automatic repair.
 
-## Check the published results in 60 seconds
+## Verify recorded evidence after cloning, no API key
 
 ```sh
-git clone https://github.com/quotumorg/precedent-log  # if not already cloned
-cd precedent-log
+git clone https://github.com/quotumorg/precedent-log && cd precedent-log && git checkout --detach 363a5ad8c47cfdbf2c8af32ff8163cf0f3c7c458
 python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
@@ -325,10 +325,10 @@ Held-out candidate selection was 8/20 correct: 7 repeats found, 3 missed, 9 diff
 
 ## How this differs from nearby plugins
 
-- **ProofOps** seals receipts for checks a job declares. precedent-log stores a human's answer to a board question; in enforce mode a hook refuses a later worker's block that ignores a matching ruling.
-- **hermes-assumption-ledger** verifies assumptions and gates turns when one is contradicted. precedent-log stores human rulings, not assumptions, and on retirement lists the completed jobs that relied on one.
-- **Standing** changes approval requirements from check history and gates completion on proof. precedent-log never grants permission; a ruling only answers a repeated question.
-- **Commonplace** keeps plain-file rules and memory for the agent. precedent-log scopes rulings to one Kanban board and checks reuse at block time.
+- **[ProofOps](https://github.com/rasrobo/proofops/blob/8c7744f32195cca86861bd0d930b05a18a865865/README.md)** documents sealed receipts from declared checks. precedent-log supplies saved board rulings and can veto eligible blocks, including those citing or quoting an active ruling, up to twice unless a valid exception explains what it does not cover; it does not verify compliance.
+- **[hermes-assumption-ledger](https://github.com/itzebe/hermes-assumption-ledger/blob/388cf02/README.md)** documents gates for decisions dependent on contradicted assumptions. precedent-log supplies saved board rulings; retirement lists distinct completed jobs with recorded ruling IDs in their summaries, not verified reliance.
+- **[Standing](https://github.com/percyhendrux123-prog/hermes-standing/blob/5a0a374f5324f1a271de23940fcf0e0883084f92/README.md)** documents approval levels derived from check history and a completion-proof gate. precedent-log checks saved-ruling citation or explanation markers before eligible worker blocks. This is a documentation comparison, not a coexistence test.
+- **[Commonplace](https://github.com/ChrisAaronNewton/hermes-commonplace/blob/2d9f6c9378d51076dd9c0ac5a7a22ce9deda7c3f/README.md)** documents rules, curated memory, transcript archives and a conditional compression gate. precedent-log scopes rulings to one profile and Kanban board and checks citation or explanation markers at block time.
 
 ## Related implementations
 
@@ -349,7 +349,7 @@ Descriptions of the first six entries follow the supplied 2026-11-06 research sn
 
 ## Disclosures (catalog rule 13)
 
-**Installed plugin:** no network, model calls, shell execution, credentials or background processes. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic retention or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
+**Installed plugin:** no network, model calls, shell execution, credentials or background processes. Reads core board metadata and public `kanban_show` task/events. Direct writes are confined by convention and guards to `<HERMES_HOME>/precedent-log/`: rulings, locks, events, policy state, torn-event fragments and repair backups. Events store timestamps, task IDs and reasons; no automatic deletion policy or external anchor. No plugin SQL or telemetry. Unmarked same-user access remains possible.
 
 **Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands, one CLI command (`precedent`: add, retire, repair, list, show, verify, stats, cited-by) and one bounded prompt section; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced.
 
