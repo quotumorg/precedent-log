@@ -211,9 +211,16 @@ The matcher uses lowercase ASCII words, fixed stopwords and simple trailing-`s` 
 - Analytics faults are visible where possible. Post-commit observer failures can lose observations. Policy-storage failure has a visible process-local fallback; persistence across respawns then cannot be guaranteed.
 - Host isolation, other versions/platforms, other plugin combinations, real-model reliability beyond the three observations above, a board-document baseline and general savings remain untested. No wrapper, search, export or Desktop surface is included.
 
+## How this differs from nearby plugins
+
+- **ProofOps** seals receipts for checks a job declares. precedent-log stores a human's answer to a board question; in enforce mode a hook refuses a later worker's block that ignores a matching ruling.
+- **hermes-assumption-ledger** verifies assumptions and gates turns when one is contradicted. precedent-log stores human rulings, not assumptions, and on retirement lists the completed jobs that relied on one.
+- **Standing** changes approval requirements from check history and gates completion on proof. precedent-log never grants permission; a ruling only answers a repeated question.
+- **Commonplace** keeps plain-file rules and memory for the agent. precedent-log scopes rulings to one Kanban board and checks reuse at block time.
+
 ## Related implementations
 
-Descriptions follow the supplied 2026-11-06 research snapshot, not a claim of exclusive functionality or tested coexistence.
+Descriptions of the first six entries follow the supplied 2026-11-06 research snapshot; the four added entries follow public PR/README sources read on 2026-11-07. These are not claims of exclusive functionality or tested coexistence. Sources can change after those dates.
 
 | Project | Relevant scope |
 | --- | --- |
@@ -223,6 +230,10 @@ Descriptions follow the supplied 2026-11-06 research snapshot, not a claim of ex
 | [Project Stewardship #148048](https://github.com/NousResearch/hermes-agent/pull/148048) | Saves decisions as well as rules and facts, injects project context, and includes approvals and Kanban. |
 | [Myeline #149277](https://github.com/NousResearch/hermes-agent/pull/149277) | Human review of AI facts, approved-memory search and reasoned retirement. |
 | [no-cap #149272](https://github.com/NousResearch/hermes-agent/pull/149272) | Claim receipts and human-approved scoped coaching rules with review/revert. |
+| [ProofOps #149625](https://github.com/NousResearch/hermes-agent/pull/149625) | Tool/CLI-run declared checks produce sealed receipts with evidence and limitations; bundled verification skill, no hooks. |
+| [hermes-assumption-ledger #150212](https://github.com/NousResearch/hermes-agent/pull/150212) | Captures operational assumptions with provenance, verifies deterministically, and gates turns when decisions depend on contradicted assumptions. |
+| [Standing #150366](https://github.com/NousResearch/hermes-agent/pull/150366) | Check history changes approval requirements; task completion requires a passing proof for the profile, task and session. |
+| [Commonplace #150245](https://github.com/NousResearch/hermes-agent/pull/150245) | Plain-file rules, curated memory, journals and handovers; transcript checkpoints can block compression if archiving fails and checkpoints are required. |
 
 ## Disclosures (catalog rule 13)
 

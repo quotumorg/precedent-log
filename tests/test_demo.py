@@ -118,4 +118,4 @@ class DemoTests(unittest.TestCase):
             self.assertIn(t2['task_id'], treated['cited_by_output'])
             self.assertIn('relied', treated['cited_by_output'])
             self.assertIn(t2['task_id'], retired['stdout'])
-            self.assertIn('completed jobs cited it:', retired['stdout'])
+            self.assertIn('1 completed job cited it:', retired['stdout'])

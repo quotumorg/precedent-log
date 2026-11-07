@@ -58,7 +58,8 @@ def _retire_report(store, row):
     except (OSError, ValueError):
         return f'{rid} retired.{replacement} Cited-by log unavailable.' + review
     jobs = ', '.join(tasks)
-    return (f"{rid} retired. {len(tasks)} completed jobs cited it: {jobs or '(none)'}."
+    noun = 'job' if len(tasks) == 1 else 'jobs'
+    return (f"{rid} retired. {len(tasks)} completed {noun} cited it: {jobs or '(none)'}."
             + replacement + review)
 
 

@@ -106,8 +106,10 @@ class CitedByTests(IsolatedTest):
                          'P-1 retired. 2 completed jobs cited it: t_a, t_b. Review them: hermes precedent cited-by P-1')
 
     def test_replacement_stored_and_shown_cli_and_slash(self):
+        self.complete('P-1')
         self.store.add('replacement', 'New policy')
         report = self.cli('retire', 'P-1', '--reason', 'New policy', '--replaced-by', 'P-2')
+        self.assertIn('P-1 retired. 1 completed job cited it: t_a.', report)
         self.assertIn('Replaced by P-2.', report)
         self.assertEqual(json.loads(self.cli('show', 'P-1'))['retirement']['replaced_by'], 'P-2')
         self.store.add('third', 'Third policy')
