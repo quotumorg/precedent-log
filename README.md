@@ -134,6 +134,46 @@ request APIs. For manual copying, include `desktop/` alongside `precedent_log/`.
 
 Screenshot placeholder: `docs/desktop-rulings.png` will be added after a live capture.
 
+## If a card gets stuck
+
+In default `enforce` mode, a worker can receive a ruling veto, return final text
+without edits, and leave its card `running`. The status/page may show the last
+veto. `veto cap reached` means a task used its two recorded vetoes; it does not
+mean core has recovered the card. The next eligible block call goes through with
+a warning naming the candidates, but the plugin cannot force that next call.
+There is no automatic recovery deadline for this no-edit path.
+
+Start evaluation with `veto: advisory` in the existing plugin configuration
+(shown under Install), keeping the prompt section and guard enabled. Compare fresh
+tasks in advisory and enforce only after checking how your worker handles a veto.
+For an already stuck card, set advisory in the worker's profile before its next
+start. In an operator terminal on the same host/profile and board, replace
+`default` and `TASK_ID` below with the actual scope and ID:
+
+```sh
+hermes --profile default kanban --board default show TASK_ID
+hermes --profile default precedent list --board default --all
+hermes --profile default kanban --board default reclaim TASK_ID --reason "recover after ruling veto"
+hermes --profile default kanban --board default show TASK_ID
+```
+
+Reclaim is an explicit operator action: it can terminate a still-live worker,
+releases its claim, restores the retry phase and resets core's failure counter.
+Inspect the first `show` before reclaiming. It does not reset the plugin's durable
+veto budget. Let the configured dispatcher retry after the second `show`; if using
+manual dispatch, `hermes --profile default kanban --board default dispatch --max 1`
+runs one board pass and may select any ready card. New workers must load the
+advisory setting. If the card is already `blocked`, answer it and use
+`hermes --profile default kanban --board default unblock TASK_ID --reason "answer reviewed"`
+instead of reclaim. Do not manually mark unfinished work complete.
+
+A plugin-side elapsed-time check would run only on a later tool call. Core skips
+`pre_verify` without edits, and its terminal-stop check counts the attempted vetoed
+call. Safe operator reclaim can terminate the caller, so it is not a worker-local
+timer. The inspected source and unchanged gate boundary are documented in
+[the recovery investigation](docs/stuck-card-recovery.md). These are verified parser
+commands and offline seam tests, not a new live no-edit recovery demonstration.
+
 ## Safety and scope
 
 Active rulings for the current profile and board are offered as worker system-prompt context, capped at 20 rows and 4,000 characters; core's aggregate plugin budget can omit the section. When a worker tries to ask a human with `kanban_block`, the backstop checks matching or cited rulings and explanation text and can refuse that block up to twice (a veto), even when the reason cites the answer. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
@@ -199,7 +239,7 @@ This is board context, not matcher-filtered context: newest IDs first, at most 2
 | Empty list or unknown P-1 | Use the ID returned by `add`, the same `HERMES_HOME` and the same explicit `--board`. `list --all` includes retired rulings. A different board can have its own P-1. |
 | Ruling saved but worker cannot see it | Use a fresh Kanban worker on that profile and an existing board. Ordinary chat is not a worker; check the row/character limits in Commands and scope. |
 | Log damaged or unreadable | Run `hermes precedent verify --board default`, substituting the affected board. Exit 2 means verification failed. Inspect the reported line or file access error; do not delete the log or guess a repair boundary. |
-| Worker stopped with its card running after veto | See B2 in [Limits](#limits-and-failure-behavior). Core recovery/retry settings control the outcome; `advisory` avoids this veto path. |
+| Worker stopped with its card running after veto | Follow [If a card gets stuck](#if-a-card-gets-stuck): inspect, switch new workers to advisory, then operator reclaim. |
 
 `repair --truncate-after N` is manual recovery: it backs up the full log and retains a verified prefix through physical line N. After damage it conservatively retires retained rulings and preserves observed IDs/retirements. Read `hermes precedent repair --help` and review the log before choosing N; there is no automatic repair.
 
