@@ -103,7 +103,7 @@ class CitedByTests(IsolatedTest):
         self.complete('P-1', 't_b')
         Events().record('citation', 't_block', ['P-1'])
         self.assertEqual(self.cli('retire', 'P-1', '--reason', 'New policy'),
-                         'P-1 retired. 2 completed jobs cited it: t_a, t_b. Review them: hermes precedent cited-by P-1')
+                         'P-1 retired. 2 completed jobs cited it: t_a, t_b. Review them: hermes precedent cited-by P-1 --board default')
 
     def test_replacement_stored_and_shown_cli_and_slash(self):
         self.complete('P-1')

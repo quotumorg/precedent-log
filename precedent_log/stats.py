@@ -97,7 +97,8 @@ class Events:
     def cited_by(self, rid):
         from .store import Store
         if not any(row['id'] == rid for row in Store(self.board).list(True)):
-            raise ValueError('Unknown ruling ' + rid)
+            raise ValueError(f'Unknown ruling {rid} on board {self.board} in this profile; '
+                             f'run hermes precedent list --board {self.board} --all')
         with locked(self.lock, exclusive=False):
             rows, _ = self._read()
         return [{key: row.get(key, '') for key in ('task_id', 'event', 'created_at')}

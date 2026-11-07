@@ -273,10 +273,12 @@ class Store:
         with locked(self.lock, timeout=5):
             state = self._read()
             if state.error or state.issues:
-                raise ValueError("Log is unreadable or fails verify; refusing to append")
+                raise ValueError("Log is unreadable or fails verify; refusing to append. "
+                                 f"Run hermes precedent verify --board {self.board}")
             rid = fields.pop("id", None) if op == "retire" else "P-" + str(state.max_id + 1)
             if op == "retire" and (rid not in state.entries or state.entries[rid]["retired"]):
-                raise ValueError("No active ruling " + str(rid))
+                raise ValueError(f"No active ruling {rid} on board {self.board}; "
+                                 f"run hermes precedent list --board {self.board} --all")
             replacement = fields.get('replaced_by')
             if op == 'retire' and replacement is not None:
                 if replacement == rid:
@@ -306,7 +308,9 @@ class Store:
     def list(self, include_retired=False):
         state = self.read()
         if state.warning:
-            raise ValueError(state.warning)
+            detail = (f"log damaged at line {state.issues[0]['line']}, rulings not applied"
+                      if state.issues else "log is unreadable; precedent check unavailable")
+            raise ValueError(f"{detail}; run hermes precedent verify --board {self.board}")
         entries = list(state.entries.values()) if include_retired else state.active
         return sorted(entries, key=lambda row: int(row["id"][2:]), reverse=True)
 
