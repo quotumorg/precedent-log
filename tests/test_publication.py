@@ -37,8 +37,8 @@ def denylist(path, root=REPO):
     return [line for line in path.read_text().splitlines() if line and not line.startswith('#')]
 
 
-def recompute():
-    spec = importlib.util.spec_from_file_location('live_recompute', REPO / 'evidence/live-r5/recompute.py')
+def recompute(edition="r5"):
+    spec = importlib.util.spec_from_file_location('live_recompute', REPO / f'evidence/live-{edition}/recompute.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -106,6 +106,17 @@ class PublicationTests(unittest.TestCase):
         self.assertIn('Warm-up (both starts kept) | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 1, 0', table)
         self.assertIn('Harness failures | 0 | 0 | 0', table)
         self.assertIn('Worker exit codes (all attempts) | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0', table)
+
+    def test_current_live_evidence_preserves_per_run_outcomes(self):
+        module = recompute('r14')
+        table = module.check_readme()
+        self.assertEqual(module.verify_files(), 176)
+        self.assertEqual(table.count('`veto`'), 2)
+        self.assertIn('Run 1: `blocked`, `needs_input`, no final file; no citation path', table)
+        self.assertIn('Run 2: `blocked`, `needs_input`, final file; no citation path', table)
+        self.assertIn('Harness failures | 0 | Run 1: 0<br>Run 2: 1 | 0 | 0', table)
+        self.assertIn('Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 0', table)
+        self.assertNotIn('`prompt`', table)
 
     def test_manifest_rejects_changed_bytes_and_unlisted_files(self):
         module = recompute()

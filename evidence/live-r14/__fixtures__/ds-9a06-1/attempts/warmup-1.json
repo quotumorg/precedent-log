@@ -1,0 +1,1 @@
+{"provider": "custom", "model": "deepseek-v4-pro", "base_url": "<provider-endpoint>", "timeout": 300.0, "session_id": "warmup-1", "workspace": "<run-root>/ds-9a06-1", "result_file": "<run-root>/ds-9a06-1/attempts/warmup-1-result.json"}

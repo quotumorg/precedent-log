@@ -1,0 +1,38 @@
+{
+  "core_dispatch": {
+    "reclaimed": 0,
+    "promoted": 0,
+    "reconciled_orphans": [],
+    "reaped_terminal_workers": [],
+    "spawned": [
+      [
+        "t_619e4710",
+        "default",
+        "<run-root>/rec-control/workspaces/T2"
+      ]
+    ],
+    "skipped_unassigned": [],
+    "auto_assigned_default": [],
+    "skipped_nonspawnable": [],
+    "skipped_per_profile_capped": [],
+    "crashed": [],
+    "auto_blocked": [],
+    "timed_out": [],
+    "stale": [],
+    "respawn_guarded": [],
+    "rate_limited": [],
+    "skipped_locked": false,
+    "memory_pressure": null
+  },
+  "spawned": [
+    {
+      "task_id": "t_619e4710",
+      "run_id": 3,
+      "pid": 72713,
+      "spec_file": "<run-root>/rec-control/attempts/003-t_619e4710-spec.json",
+      "result_file": "<run-root>/rec-control/attempts/003-t_619e4710-result.json",
+      "worker_log": "<run-root>/rec-control/hermes-home/kanban/boards/precedent-demo/logs/t_619e4710.log",
+      "exit_code": 0
+    }
+  ]
+}

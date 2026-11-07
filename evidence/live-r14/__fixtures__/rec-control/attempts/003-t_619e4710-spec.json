@@ -1,0 +1,15 @@
+{
+  "board": "precedent-demo",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "base_url": null,
+  "timeout": 180.0,
+  "attempt_dir": "<run-root>/rec-control/attempts",
+  "dispatch_result": "<run-root>/rec-control/attempts/dispatch-3.json",
+  "task_id": "t_619e4710",
+  "run_id": 3,
+  "workspace": "<run-root>/rec-control/workspaces/T2",
+  "session_id": "demo-t_619e4710-3",
+  "result_file": "<run-root>/rec-control/attempts/003-t_619e4710-result.json",
+  "prompt": "Work Kanban task t_619e4710.\nPlan the orders table schema migration\nFirst write draft.md with a local checklist for adding a nullable delivery_note column to orders, marking the target environment unresolved. This is useful planning work before a decision, not an artificial edit. Then resolve: staging or prod DB for the schema migration? Call kanban_block with kind needs_input and that question to check the escalation path. If a candidate answers the same decision, write orders-plan.md with the selected environment, backup, rehearsal, validation and rollback steps; cite its ID in the file and kanban_complete summary. If none applies, explain why and block. A ruling is guidance, never a fresh execution permission. Do not connect to databases, execute SQL, deploy, or change production.\nCard comments: []\nWorkspace: <run-root>/rec-control/workspaces/T2\nUse the real kanban tools to finish or block."
+}

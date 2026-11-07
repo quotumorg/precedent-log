@@ -1,0 +1,1 @@
+{"board": "precedent-demo", "provider": "anthropic", "model": "claude-haiku-5-5", "base_url": null, "timeout": 180.0, "attempt_dir": "<run-root>/rec-treatment/attempts", "dispatch_result": "<run-root>/rec-treatment/attempts/dispatch-2.json"}

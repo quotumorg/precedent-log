@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 142 passing](https://img.shields.io/badge/offline_tests-142_passing-2b2a6b)](evidence/tests-r13.txt)
+[![offline tests: 143 passing](https://img.shields.io/badge/offline_tests-143_passing-2b2a6b)](evidence/tests-r14.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -152,14 +152,56 @@ This is board context, not matcher-filtered context: newest IDs first, at most 2
 ```sh
 git clone https://github.com/quotumorg/precedent-log  # if not already cloned
 cd precedent-log
+python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 142 offline tests pass; the [verification](#verification) commands rerun them.
+This reads recordings; it does not exercise an installed plugin. It recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 143 offline tests pass; the [verification](#verification) commands rerun them.
 
 To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
 
 ## Live run
+
+### Current evidence: 9a06174 (2026-11-07)
+
+Six real-model runs used the public codeload tarball of `9a06174b65bb300a373581882393143fe503e2de` outside any Git tree, Hermes v0.23.0 at `2bd378ed`, and `demo/run.py` (worker timeout 180 seconds, warm-up timeout 300 seconds). Haiku is `claude-haiku-5-5` via the Anthropic API; `deepseek-v4-pro` used Venice (OpenAI-compatible endpoint).
+
+Cells describe each run separately. Identical results share a cell; differences are labeled Run 1 and Run 2. Enforce runs are `rec-treatment`, `rec-treatment-2`; advisory runs are `rec-advisory`, `rec-advisory-2`; control is `rec-control`; DeepSeek is `ds-9a06-1`.
+
+| Step | Haiku enforce (2 runs) | Haiku advisory (2 runs) | Haiku no plugin (1 run) | deepseek-v4-pro enforce (1 run) |
+| --- | --- | --- | --- | --- |
+| Warm-up (all starts kept) | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 1, 0 | Ready; exits 0 |
+| T1, first worker attempt | `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file |
+| Answer T1 | Add P-1, unblock; `done`, users-plan.md | Add P-1, unblock; `done`, users-plan.md | Unblock only; `done`, users-plan.md | Add P-1, unblock; `done`, users-plan.md |
+| T2, same decision | `done`; P-1 in file and summary; `veto` | Run 1: `blocked`, `needs_input`, no final file; no citation path<br>Run 2: `blocked`, `needs_input`, final file; no citation path | `blocked`, `needs_input`, no final file; no citation path | `done`; P-1 in file and summary; `veto` |
+| T3, fixture instruction-following | P-1 rejection marker; `blocked`, `needs_input`, no final file | P-1 rejection marker; `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file | P-1 rejection marker; `blocked`, `needs_input`, no final file |
+| T4, after retirement | P-1 retired; `blocked`, `needs_input`, no final file | P-1 retired; `blocked`, `needs_input`, no final file | `blocked`, `needs_input`, no final file | P-1 retired; `blocked`, `needs_input`, no final file |
+| Worker exit codes (all attempts) | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 | 0, 0, 0, 0, 0 |
+| Harness failures | 0 | Run 1: 0<br>Run 2: 1 | 0 | 0 |
+
+In both Haiku advisory runs the same ruling was in the prompt and T2 blocked to ask again; in both enforce runs the hook vetoed that block and T2 completed citing P-1.
+
+DeepSeek enforce also completed T2 via the veto path, citing P-1 in its file and completion summary. The no-plugin control blocked again. In advisory Run 2, the worker wrote `orders-plan.md` after its block was accepted, leaving the card blocked; the harness recorded one failure (`T2: expected blocked with artifact if done; observed blocked`). This is not a completed T2. Advisory Run 1 wrote no final file. All 30 worker attempts exited 0; worker exit codes do not imply a successful harness outcome.
+
+Limits: six runs, two model families, one fixture, no real B2. T2 explicitly requests a block to check the escalation path; T3 explicitly instructs rejection of non-matching rulings. These are fixture-specific observations, not a reliability estimate, independent reproduction or safety evaluation. The local dispatch adapter is not the standard gateway. All five Haiku warm-ups exited 1 during dependency activation, then 0; DeepSeek initialized on its first start (exit 0). All starts are retained. Captures retain worker exchanges, not a separate provider request/system-prompt dump; the prompt statement reflects the configured ruling hook and the workers' pre-veto references to P-1. Path labels describe tool traces, not internal reasoning.
+
+[Complete redacted captures and replacement counts](evidence/live-r14/REDACTIONS.md) cover all 176 transcript, attempt and workspace files; Hermes homes are excluded. Run `python3 -B evidence/live-r14/recompute.py --check-readme` to verify the exact inventory, hashes, attempt/warm-up records, output files and table offline. Provenance is supplied by the capture owner; hashes cover public bytes, not authorship.
+
+### Found and fixed in live runs
+
+These earlier `deepseek-v4-pro` enforce results are historical findings, excluded from the six-run table:
+
+- `f241ba3`: T2 cited P-1 and still asked for confirmation; fixed by r12's citing-block veto.
+- `4beef52`: T2 quoted P-1 but missed the ruling keys; fixed by r13's cited/quoted-ruling candidate check, without changing the matcher.
+
+Result lines from those captures (whitespace flattened; no omitted reason text):
+
+```text
+f241ba3: T2 attempt-1 | blocked | needs_input | staging or prod DB for the schema migration? Precedent P-1 says "Use staging for the local migration plan. Production operations require fresh approval." Need confirmation that staging is the correct target before writing the final orders-plan.md. [precedent-log] syntactic citation marker; checked active matching P-1 | citation=False | path=. | output=False
+4beef52: T2 attempt-1 | blocked | needs_input | Target environment unresolved: should this orders.delivery_note migration target staging or production? Precedent P-1 ("Use staging for the local migration plan. Production operations require fresh approval") suggests staging. Please confirm or override. [precedent-log] checked 1 active rulings on board precedent-demo: none matched | citation=False | path=. | output=False | mode=enforce
+```
+
+### Earlier evidence: r5
 
 On 2026-11-06, Haiku 5.5 and Sonnet 5.5 ran with plugin commit `bee2e2c`; Haiku also ran without the plugin. The supplied r5 captures used a clean `git archive` export outside any Git tree. Limits: three runs, one model family (Claude), warm-up used, no real B2. This is not a reliability estimate or independent reproduction. T3 explicitly tells the worker to reject non-matching rulings, so it is an instruction-following observation, not a safety evaluation.
 
@@ -197,7 +239,7 @@ CONTROL_HOME="$(mktemp -d)"
   --hermes-home "$CONTROL_HOME" --model-provider fake --include-b2 --no-plugin
 ```
 
-`--veto {enforce,advisory}` defaults to `enforce`. To compare prompt-only reuse with the hook, run the same model and fixture in two fresh homes, once with `--veto advisory` and once with `--veto enforce`, keeping the plugin enabled in both. Advisory retains ruling prompts and the store guard, allows a re-ask, and records either T2 completion with a citation or a needs-input block. Transcripts record `veto`; result lines print `mode=`. A `--no-plugin` control records the selected mode but has no active plugin check. No real-model advisory/enforce pair is included in the published results yet.
+`--veto {enforce,advisory}` defaults to `enforce`. To compare prompt-only reuse with the hook, run the same model and fixture in two fresh homes, once with `--veto advisory` and once with `--veto enforce`, keeping the plugin enabled in both. Advisory retains ruling prompts and the store guard, allows a re-ask, and records either T2 completion with a citation or a needs-input block. Transcripts record `veto`; result lines print `mode=`. A `--no-plugin` control records the selected mode but has no active plugin check. The [current live table](#live-run) includes two Haiku runs per mode on the same fixture, with per-run outcomes and harness failures retained.
 
 Both fake commands should exit 0. Expected T2 result lines (the reason text is abbreviated here):
 
@@ -322,12 +364,13 @@ Set `HERMES_SOURCE` to the prepared pinned Hermes source and `HERMES_PYTHON` to 
 ```sh
 HERMES_SOURCE="$HERMES_SOURCE" PYTHONDONTWRITEBYTECODE=1 \
   "$HERMES_PYTHON" -B tests/run_offline.py
+python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 142 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r13.txt](evidence/tests-r13.txt).
+All 143 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes only the existing slow loopback fake-provider test under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.2.1 result is recorded in [evidence/tests-r14.txt](evidence/tests-r14.txt).
 
-Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
+Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 
 Historical [r5 offline](evidence/tests-r5.txt) and [r4 full-suite](tests/evidence/tests-r4.txt) logs are retained with paths sanitized. To run the network-using suite in a permitted environment, use `"$HERMES_PYTHON" -m unittest discover -s tests -v` with the same `HERMES_SOURCE`.
 
