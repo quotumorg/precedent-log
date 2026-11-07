@@ -1,0 +1,48 @@
+name: Bug report
+description: Report reproducible plugin behavior.
+body:
+  - type: input
+    id: hermes
+    attributes:
+      label: Hermes version and commit
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and version
+    validations:
+      required: true
+  - type: dropdown
+    id: veto
+    attributes:
+      label: Veto mode
+      options:
+        - enforce
+        - advisory
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: transcript
+    attributes:
+      label: Transcript excerpt
+      description: Redact paths and keys, credentials, and other private data before posting.
+      render: text

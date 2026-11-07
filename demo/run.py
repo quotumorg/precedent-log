@@ -48,7 +48,7 @@ def preflight(source):
 
 
 def outside_git(path, label):
-    """Check both ordinary repositories and worktrees (whose .git is a file)."""
+    """Check ordinary repositories and linked checkouts (whose .git is a file)."""
     resolved = Path(path).expanduser().resolve()
     for parent in (resolved, *resolved.parents):
         if (parent / ".git").exists() or (parent / ".git").is_symlink():

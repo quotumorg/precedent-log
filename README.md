@@ -1,8 +1,43 @@
-# Precedent Log
+# precedent-log, a Hermes Agent plugin
 
-- A worker asks "staging or prod?"
-- A human saves "use staging for this local plan" as ruling P-1: a saved answer to a board question.
-- The next job reads P-1, cites it and finishes the plan.
+Answer a Kanban worker's question once. Later workers on the same board reuse your ruling instead of asking again.
+
+![Precedent Log for Hermes Agent: answer once, later jobs check the ruling](docs/readme-1600x600.png)
+
+1. **Ask.** A worker blocks on a decision: "staging or prod?"
+2. **Ruling.** You answer once and save the answer as ruling P-1 for that board.
+3. **Reuse.** The next worker with the same decision reads P-1, cites it and finishes. No second interruption.
+
+Rulings are guidance for matching questions, never permission for new actions.
+
+[![offline tests: 99 passing](https://img.shields.io/badge/offline_tests-99_passing-2b2a6b)](evidence/tests-r6.txt)
+[![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
+[![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
+
+## Install
+
+```sh
+git clone https://github.com/quotumorg/precedent-log
+export HERMES_HOME=/path/to/your/chosen-profile
+mkdir -p "$HERMES_HOME/plugins/precedent-log"
+cp -R precedent-log/plugin.yaml precedent-log/__init__.py precedent-log/LICENSE \
+  precedent-log/precedent_log "$HERMES_HOME/plugins/precedent-log/"
+```
+
+Then merge the [config snippet](#install-just-the-plugin), including `plugins.isolation: in_process`, and start a new session. The local-source install-and-enable check stopped at Hermes PM bootstrap because it required a download; the copy installation above was checked offline. Tested only on Hermes v0.23.0 on POSIX.
+
+## Try it in 60 seconds, no API key
+
+```sh
+git clone https://github.com/quotumorg/precedent-log && cd precedent-log
+python3 -B evidence/live-r5/recompute.py --check-readme
+```
+
+This recomputes the [live-run table](#live-run) from the committed transcripts, without Hermes, network or model calls. 99 offline tests pass; the [verification](#verification) commands rerun them.
+
+To watch real Hermes workers block, save a ruling and reuse it, still without an API key, run the [scripted fake-provider scenario](#try-the-recorded-scenario-locally). It needs a Hermes v0.23.0 source checkout.
+
+## Safety and scope
 
 Active rulings for the current profile and board appear in the worker's system prompt. The `kanban_block` backstop checks syntactic citation/explanation markers, with at most two vetoes. It does not verify correct application. Implementation credit: [Hermes #138478](https://github.com/NousResearch/hermes-agent/issues/138478).
 

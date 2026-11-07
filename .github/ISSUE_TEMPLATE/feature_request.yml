@@ -1,0 +1,19 @@
+name: Feature request
+description: Describe a concrete workflow and the behavior it needs.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow and problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
