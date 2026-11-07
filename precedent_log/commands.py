@@ -163,6 +163,9 @@ def ruling(raw_args, *, platform=None, session_key=None, **kwargs):
 
 
 def rulings(raw_args="", **kwargs):
+    if raw_args.strip() == "status":
+        from .status import status
+        return status()
     try:
         store = Store()
         return _text(store.list(), store.board)
