@@ -22,6 +22,18 @@ With Hermes v0.23.0 already working on Linux or macOS, install the plugin and sa
 
 ### Install
 
+From the Hermes plugin catalog:
+
+```sh
+hermes plugins install precedent-log --enable
+```
+
+The catalog pins 0.4.2 at commit `8741e9f`. Checked on 2026-11-08 on Hermes v0.23.0 in an empty `HERMES_HOME`: the install landed on `8741e9f`, community tier. Without `--enable`, Hermes asks before turning it on. With runtime dependency setup the install took about 1.5-2.5 minutes.
+
+In Hermes Desktop: Capabilities → Plugins → search `precedent-log` → Install. Checked on a Desktop built from Hermes source (v0.23.0): the card turned On and a Rulings page appeared in the sidebar without a restart. The packaged Desktop app is untested.
+
+From source (latest `main`, not the catalog pin):
+
 ```sh
 hermes plugins install quotumorg/precedent-log --enable
 ```
