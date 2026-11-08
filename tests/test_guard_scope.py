@@ -141,21 +141,48 @@ class GuardScopeTests(IsolatedTest):
                         patch.dict(os.environ, {'HERMES_DELEGATED_CHILD_CONTEXT': '1'}),
                         patch.dict(os.environ, {'HERMES_KANBAN_TASK': 'task'})):
             with context:
-                for tool, args in OPAQUE:
+                for tool, args in [*OPAQUE, ('read_file', {'path': 'notes.txt'})]:
                     default = Config({})
                     self.assertIsNone(pre_tool_call(tool, args, ctx=default))
                     self.assertEqual(default.reads, [('precedent_log.guard', 'scoped')])
                     strict = Config({'precedent_log.guard': 'strict'})
                     result = pre_tool_call(tool, args, ctx=strict)
-                    if os.environ.get('HERMES_KANBAN_TASK') or os.environ.get('HERMES_DELEGATED_CHILD_CONTEXT') or owned_child():
+                    marked = bool(os.environ.get('HERMES_KANBAN_TASK') or
+                                  os.environ.get('HERMES_DELEGATED_CHILD_CONTEXT') or owned_child())
+                    if marked and tool != 'read_file':
                         self.assertEqual(result['action'], 'block')
                     else:
                         self.assertIsNone(result)
                     for value in ('wrong', '', None, [], {}):
                         invalid = Config({'precedent_log.guard': value})
                         result = pre_tool_call(tool, args, ctx=invalid)
-                        self.assertEqual(result['action'], 'block')
-                        self.assertIn('precedent_log.guard must be scoped or strict', result['message'])
+                        if marked and tool != 'read_file':
+                            self.assertEqual(result, {'action': 'block', 'message':
+                                '[precedent-log] precedent_log.guard must be scoped or strict'})
+                        else:
+                            self.assertIsNone(result)
+
+    def test_invalid_mode_covers_only_marked_guarded_tools_and_destination_fields(self):
+        targets = [('write_file', {'path': 'notes.txt'}),
+                   ('patch', {'patch': '*** Add File: notes.txt\n+x'}),
+                   ('terminal', {'command': 'pwd'}),
+                   ('process_manage', {'action': 'poll'}), *OPAQUE]
+        targets.extend(('other_tool', {key: value})
+                       for key in ('output_path', 'save_path', 'destination', 'dest_path')
+                       for value in ('notes.txt', None))
+        for context, marked in ((nullcontext(), False), (delegated_child_context(), True),
+                                (patch.dict(os.environ, {'HERMES_DELEGATED_CHILD_CONTEXT': '1'}), True),
+                                (patch.dict(os.environ, {'HERMES_KANBAN_TASK': 'task'}), True)):
+            with context:
+                for tool, args in targets:
+                    with self.subTest(marked=marked, tool=tool, args=args):
+                        result = check(tool, args, str(self.home), mode='wrong')
+                        if marked:
+                            self.assertEqual(result, {'action': 'block', 'message':
+                                '[precedent-log] precedent_log.guard must be scoped or strict'})
+                        else:
+                            self.assertIsNone(result)
+                self.assertIsNone(check('other_tool', {}, str(self.home), mode='wrong'))
 
 
 def owned_child():

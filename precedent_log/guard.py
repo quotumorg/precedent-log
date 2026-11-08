@@ -50,10 +50,13 @@ def _patch_paths(text):
 
 
 def check(tool_name, args, cwd="", mode="scoped"):
-    if mode not in ("scoped", "strict"):
-        return {"action": "block", "message": "[precedent-log] precedent_log.guard must be scoped or strict"}
     if not is_worker_or_child():
         return None
+    if (tool_name not in {"write_file", "patch", "terminal", "process_manage", "execute_code"}
+            and not any(key in args for key in ("output_path", "save_path", "destination", "dest_path"))):
+        return None
+    if mode not in ("scoped", "strict"):
+        return {"action": "block", "message": "[precedent-log] precedent_log.guard must be scoped or strict"}
     root = store_dir().resolve()
     base = Path(cwd or os.environ.get("TERMINAL_CWD") or os.getcwd()).expanduser().resolve()
     paths = []

@@ -210,7 +210,7 @@ Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf
 
 In-process children of Kanban workers retain the task marker and use this scope. Core removes it from subprocesses; the remaining child marker does not distinguish Kanban ancestry from ordinary chat delegation. Those subprocesses and chat subagents therefore keep only the explicit store-path checks: file/patch destinations, commands naming the store, and execution from inside the store. Set `precedent_log.guard: strict` to block these opaque tools in every marked worker and delegated child, even without rulings, as in 0.4.1. Both modes keep the cooperative store-path checks and refuse all worker/child ruling additions, retirements and repairs. This is not a sandbox.
 
-Like veto, guard is read through `ctx.get_config` relative to this plugin's settings. Invalid guard values block with a clear error.
+Like veto, guard is read through `ctx.get_config` relative to this plugin's settings. Invalid guard values block with a clear error only in marked worker/child calls to inspected tools (`write_file`, `patch`, `terminal`, `process_manage`, `execute_code`, or any tool with an `output_path`, `save_path`, `destination` or `dest_path` argument). Unmarked sessions and unrelated tools ignore invalid guard values.
 
 ## Terms used below
 
