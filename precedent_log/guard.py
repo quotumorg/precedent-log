@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import shlex
 
-from .store import store_dir
+from .store import Store, call_board, store_dir
 
 
 REFUSAL = "marked workers cannot change rulings. Ask with kanban_block instead."
@@ -49,7 +49,9 @@ def _patch_paths(text):
             yield from re.split(r"\s*->\s*", found[1])
 
 
-def check(tool_name, args, cwd=""):
+def check(tool_name, args, cwd="", mode="scoped"):
+    if mode not in ("scoped", "strict"):
+        return {"action": "block", "message": "[precedent-log] precedent_log.guard must be scoped or strict"}
     if not is_worker_or_child():
         return None
     root = store_dir().resolve()
@@ -70,10 +72,19 @@ def check(tool_name, args, cwd=""):
     if tool_name in {"terminal", "process_manage", "execute_code"}:
         # Python can load an unrelated script and stdin can feed an already-open
         # writer. Neither public tool exposes enough destination information.
-        # Deny these opaque write surfaces in marked execution, not by content.
+        # Scoped mode needs a task marker, including an in-process child
+        # inheriting its parent's env. Core scrubs that marker on subprocess
+        # spawn; the generic descendant fence does not prove Kanban ancestry.
         if tool_name == "execute_code" or (tool_name == "process_manage" and
                 (args.get("action") in {"write", "submit"} or args.get("data"))):
-            return {"action": "block", "message": REFUSAL}
+            opaque_block = mode == "strict"
+            if not opaque_block and (os.environ.get("HERMES_KANBAN_TASK") or "").strip():
+                state = Store(call_board(args.get("board"))).read()
+                if state.warning:
+                    raise ValueError(state.warning)
+                opaque_block = bool(state.active)
+            if opaque_block:
+                return {"action": "block", "message": REFUSAL}
         workdir = args.get("workdir")
         if workdir:
             candidate = Path(os.path.expandvars(workdir)).expanduser()

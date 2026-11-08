@@ -75,7 +75,7 @@ for mode in ('enforce', 'advisory', 'control'):
     h = Harness.__new__(Harness)
     h.fixture, h.tasks, h.answered = fixture, {}, False
     store = Store(board)
-    with patch.object(plugins.PluginContext, 'get_config', return_value=mode if mode != 'control' else 'enforce'), kbc.connect_closing(board=board) as conn:
+    with patch.object(plugins.PluginContext, 'get_config', side_effect=lambda key, default: (mode if mode != 'control' else 'enforce') if key == 'precedent_log.veto' else default), kbc.connect_closing(board=board) as conn:
         def create(task):
             tid = kb.create_task(conn, title=task['title'], assignee='worker')
             h.tasks[task['label']] = {**task, 'id': tid}

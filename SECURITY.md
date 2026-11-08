@@ -1,7 +1,9 @@
 # Security
 
-Supported version: plugin 0.3.x on Hermes v0.23.0, in-process on POSIX. Later Hermes versions are not verified. The optional Desktop item has SDK facade coverage only; see README for its API requirements.
+Supported version: plugin 0.4.2 on Hermes v0.23.0, in-process on POSIX. Later Hermes versions are not verified. Desktop has offline SDK facade coverage and historical source-built live runs on 0.4.0/0.4.1; the packaged app is untested. See README for its API requirements.
 
 Report vulnerabilities privately through this repository's [GitHub private vulnerability reporting / security advisories](https://github.com/quotumorg/precedent-log/security/advisories/new). Include a minimal reproduction and redact credentials and private paths. If private reporting is unavailable, do not put sensitive details in a public issue.
 
 Scope: the plugin runtime and store guard. The behavior described in README [Safety and scope](README.md#safety-and-scope) and [Limits and failure behavior](README.md#limits-and-failure-behavior) is known and documented, including syntactic checks and cooperative write restrictions.
+
+The store guard is cooperative, not a sandbox. By default (`precedent_log.guard: scoped`), code execution and process stdin writes are blocked only for calls carrying a Kanban task marker on a board with active rulings. In-process children retain that marker; core scrubs it from subprocesses and supplies no distinct Kanban ancestry signal there. Plain chat children and scrubbed subprocesses keep explicit store-path checks. `precedent_log.guard: strict` restores the denial for every marked worker or delegated child, regardless of rulings. Both modes refuse worker/child ruling writers. Board/store failures while resolving the scoped opaque-tool check fail closed; missing or fully retired stores allow it. Invalid guard settings block calls.

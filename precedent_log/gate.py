@@ -141,7 +141,8 @@ def decide(args, task_id="", diagnostic="", veto_mode="enforce"):
 def pre_tool_call(tool_name=None, args=None, task_id="", cwd="", ctx=None, **kwargs):
     args = args if isinstance(args, dict) else {}
     try:
-        blocked = guard.check(tool_name, args, cwd)
+        guard_mode = ctx.get_config("precedent_log.guard", "scoped") if ctx and hasattr(ctx, "get_config") else "scoped"
+        blocked = guard.check(tool_name, args, cwd, guard_mode)
         if blocked:
             return blocked
     except Exception:

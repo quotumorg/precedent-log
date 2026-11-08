@@ -12,7 +12,7 @@ Rulings are guidance for matching questions, never permission for new actions.
 
 The plugin adds a block-time check and a record of which jobs cited each ruling. If you retire P-1, `cited-by` lists those jobs for review. The check and records use text markers, not proof that the answer was applied correctly. [Safety and scope](#safety-and-scope) describes the boundaries.
 
-[![offline tests: 174 passing](https://img.shields.io/badge/offline_tests-174_passing-2b2a6b)](evidence/tests-r20.txt)
+[![offline tests: 181 passing](https://img.shields.io/badge/offline_tests-181_passing-2b2a6b)](evidence/tests-r22.txt)
 [![tested on Hermes v0.23.0](https://img.shields.io/badge/tested_on-Hermes_v0.23.0-2b2a6b)](#safety-and-scope)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2b2a6b)](LICENSE)
 
@@ -81,7 +81,7 @@ When finished with the trial, use `hermes precedent retire P-1 --board default -
 
 ## Desktop
 
-Version 0.4.1 ships `desktop/plugin.js` in the same package. Enable its Desktop half
+Version 0.4.2 ships `desktop/plugin.js` in the same package. Enable its Desktop half
 in Hermes Desktop's plugin settings on an SDK-compatible build. Open **Rulings**
 from the sidebar or click the native right-hand status item:
 
@@ -202,9 +202,15 @@ Active rulings for the current profile and board are offered as worker system-pr
 
 Any process able to write this store supplies prompt text and is trusted. Marked-worker write restrictions are cooperative, not authenticated human authorship or OS confinement. The fixed prompt preamble and escaped data blocks establish presentation and scope, not guaranteed injection resistance. Rulings never grant permission for new actions.
 
-Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.4.1; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
+Tested only on Hermes v0.23.0, in-process mode on POSIX, commit `2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19`. Plugin version 0.4.2; the `>=0.23.0` floor does not establish later compatibility. Direct CLI, dashboard, goal-loop and core database paths bypass the block check.
 
 `precedent_log.veto` is relative to this plugin's settings, read through `ctx.get_config`. Invalid values refuse the block check with a clear error. Advisory leaves the prompt section and store guard active, appends matching or cited candidate data to the block reason, and does not create a pending veto.
+
+`precedent_log.guard` defaults to `scoped`. It blocks `execute_code` and `process_manage` stdin writes (`write`, `submit`, or nonempty `data`) only when `HERMES_KANBAN_TASK` is present and the resolved board has at least one active ruling. Active means a verified, readable store entry that has not been retired, as defined by `Store.read().active`. Board lookup or store read failure in that scope blocks the call. Missing stores and stores with only retired rulings allow these calls.
+
+In-process children of Kanban workers retain the task marker and use this scope. Core removes it from subprocesses; the remaining child marker does not distinguish Kanban ancestry from ordinary chat delegation. Those subprocesses and chat subagents therefore keep only the explicit store-path checks: file/patch destinations, commands naming the store, and execution from inside the store. Set `precedent_log.guard: strict` to block these opaque tools in every marked worker and delegated child, even without rulings, as in 0.4.1. Both modes keep the cooperative store-path checks and refuse all worker/child ruling additions, retirements and repairs. This is not a sandbox.
+
+Like veto, guard is read through `ctx.get_config` relative to this plugin's settings. Invalid guard values block with a clear error.
 
 ## Terms used below
 
@@ -462,7 +468,7 @@ Held-out candidate selection was 8/20 correct: 7 repeats found, 3 missed, 9 diff
 - A block-time citation must name an active matching ruling on this board with an intact ID, or include a whole ruling sentence normalized for case, punctuation and whitespace while preserving word order; it does not authorize asking the same question again. References inside decorated tokens and requests to ignore a ruling, ask again, disregard or override are treated as uncited. To block with an exception, `no precedent applies:` needs at least 20 characters, four distinct words after removing IDs/punctuation, and every candidate shown for this task. These remain text checks, not semantic truth: counts are not verified decisions, human answers or savings. No-candidate questions pass with a check line.
 - Two vetoes per task/board, then a visibly warned escalation. Policy counts and candidate IDs survive respawn separately from analytics. Stats count attempts, not distinct questions, human answers or completed jobs.
 - **B2 remains unresolved in 0.3.0.** The veto explicitly says to continue in this turn, even without edits, but this is a model instruction, not enforced continuation. Core counts a vetoed terminal tool call as a handoff attempt and skips its normal stop nudge. Public `pre_verify` continuation is available only after edits and below core's nudge cap. No-edit or cap-exhausted workers can exit without changing their running card. The scripted fake-provider local adapter shows requeue/requeue/warned-block with its chosen retry settings. No real-model B2 was run. Recovery relies on core dead-worker recovery and its retry settings; no recovery deadline is claimed. Advisory avoids this veto path. The offline `max_retries=1` test instead parks after the first exit. Default gateway ownership/timeout recovery has no demonstrated wall-time bound here.
-- Marked `execute_code` and process stdin writes are denied conservatively. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
+- In scoped mode, calls carrying a Kanban task marker on boards with active rulings cannot use `execute_code` or process stdin writes. `precedent_log.guard: strict` extends that denial to all marked workers and delegated children, even with no rulings. This may interrupt ordinary coding workflows. Literal file/terminal paths, traversal, symlinks and marker clearing are guarded; arbitrary shell obfuscation, foreign tools/filesystems and races are not contained.
 - Locked JSONL and hashes detect ordinary changes, not a recomputed whole chain or deleted final suffix. Damage quarantines the board. Human `repair --truncate-after N` backs up the complete file and atomically checkpoints a clean prefix, preserves observed retirements/ID high-water, and conservatively retires retained entries after damage. Review before re-adding.
 - Retirement never edits, reopens or blocks tasks. Review cited jobs manually; existing session prompts and completed outputs are not revoked.
 - Analytics faults are visible where possible. Post-commit observer failures can lose observations. Policy-storage failure has a visible process-local fallback; persistence across respawns then cannot be guaranteed.
@@ -514,7 +520,7 @@ python3 -B evidence/live-r14/recompute.py --check-readme
 python3 -B evidence/live-r5/recompute.py --check-readme
 ```
 
-All 174 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.4.1 result is recorded in [evidence/tests-r20.txt](evidence/tests-r20.txt). Desktop facade checks are separate: `node tests/desktop.mjs`.
+All 181 offline tests pass, including the always-on privacy check and the configured external denylist. The offline runner includes every non-network test. It excludes the two slow loopback fake-provider tests under this revision's no-network/no-provider constraint; all offline B2 tests remain. The optional additional private denylist is skipped when `PRECEDENT_PRIVATE_DENYLIST` is unset. Supply a newline-delimited denylist outside the repo to enable it; matches are not echoed into logs. The 0.4.2 result is recorded in [evidence/tests-r22.txt](evidence/tests-r22.txt). Desktop facade checks are separate: `node tests/desktop.mjs`.
 
 Run privacy alone, without Hermes, using `python3 -B tests/test_publication.py`. A clean archive scans all exported files. The checks reject absolute user-home paths, local hostname tokens, emails, provider keys and base64-like blobs longer than 120 characters. Redaction rules and per-file counts are in [r17 REDACTIONS.md](evidence/live-r17/REDACTIONS.md), [r14 REDACTIONS.md](evidence/live-r14/REDACTIONS.md) and [r5 REDACTIONS.md](evidence/live-r5/REDACTIONS.md); private prefixes are passed as arguments to [redact.py](evidence/redact.py), never committed.
 

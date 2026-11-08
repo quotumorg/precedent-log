@@ -1,12 +1,12 @@
 name: precedent-log
 repo: https://github.com/quotumorg/precedent-log
 sha: <FULL_SHA_AFTER_PUSH>
-description: "Saves a human's answer to a blocked Kanban question as a ruling for later workers. Shows rulings and vetoes in Desktop, where you can review and retire rulings."
+description: "Saves a human's answer to a blocked Kanban question as a ruling for later workers. Shows rulings and vetoes in Desktop, where you can review and retire rulings. Its cooperative guard blocks code execution and process stdin writes in calls carrying a Kanban task marker on boards with active rulings; precedent_log.guard: strict extends this to every marked worker and delegated child. Explicit store-path checks remain in both modes; this is not a sandbox."
 maintainer: quotumorg
 tier: community
 category: memory
 requires_hermes: ">=0.23.0"
-version: "0.4.1"
+version: "0.4.2"
 readme: true
 platforms: [linux, macos]
 known_issues:

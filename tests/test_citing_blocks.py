@@ -22,7 +22,7 @@ class CitingBlockTests(IsolatedTest):
         self.store.add(QUESTION, RULING, ['schema', 'migration'])
 
     def call(self, reason, task='t_repeat', mode='enforce'):
-        ctx = SimpleNamespace(get_config=lambda *_: mode)
+        ctx = SimpleNamespace(get_config=lambda key, default: mode if key == "precedent_log.veto" else default)
         return pre_tool_call('kanban_block', {'reason': reason}, task_id=task, ctx=ctx)
 
     def test_cited_repeat_is_vetoed_and_recorded_without_reliance(self):
