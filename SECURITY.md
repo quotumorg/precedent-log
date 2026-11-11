@@ -1,6 +1,6 @@
 # Security
 
-Supported version: plugin 0.4.2 on Hermes v0.23.0, in-process on POSIX. Later Hermes versions are not verified. Desktop has offline SDK facade coverage and historical source-built live runs on 0.4.0/0.4.1; the packaged app is untested. See README for its API requirements.
+Supported version: plugin 0.4.3 on stable Hermes >=0.23.0,<0.24, in-process on POSIX. The offline suite passes on v0.23.0 and v0.23.1; other patch releases are not individually verified. Desktop has offline SDK facade coverage and historical source-built live runs on 0.4.0/0.4.1; the packaged app is untested. See README for its API requirements.
 
 Report vulnerabilities privately through this repository's [GitHub private vulnerability reporting / security advisories](https://github.com/quotumorg/precedent-log/security/advisories/new). Include a minimal reproduction and redact credentials and private paths. If private reporting is unavailable, do not put sensitive details in a public issue.
 

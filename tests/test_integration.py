@@ -41,7 +41,7 @@ assert set(manifest.provides_hooks) == hooks
 assert not manifest.provides_tools and not manifest.requires_env and not manifest.python_dependencies
 assert "Saves a human's answer to a blocked Kanban question" in manifest.description
 assert 'precedent_log.guard: strict' in manifest.description
-assert manifest.version == '0.4.2'
+assert manifest.version == '0.4.3'
 assert invoke_plugin_command(commands['ruling']['handler'],
     'add staging prod migrations => Use staging [keys: staging, prod]',
     platform='cli', session_key='integration') == 'Added P-1'

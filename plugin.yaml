@@ -1,14 +1,14 @@
 name: precedent-log
-version: "0.4.2"
+version: "0.4.3"
 description: >-
   Saves a human's answer to a blocked Kanban question as a ruling for later workers.
-  Shows rulings and vetoes in Desktop, where you can review and retire rulings.
+  Shows rulings, timelines and saved answer receipts in Desktop for review and retirement.
   Its cooperative guard blocks code execution and process stdin writes only during
   Kanban work with active rulings; precedent_log.guard: strict extends this to all
   marked workers and delegated subagents.
 author: quotumorg
 license: MIT
-requires_hermes: ">=0.23.0"
+requires_hermes: ">=0.23.0,<0.24"
 config_schema:
   precedent_log:
     type: dict

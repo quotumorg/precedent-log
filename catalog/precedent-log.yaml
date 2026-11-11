@@ -1,19 +1,19 @@
 name: precedent-log
 repo: https://github.com/quotumorg/precedent-log
 sha: <FULL_SHA_AFTER_PUSH>
-description: "Saves a human's answer to a blocked Kanban question as a ruling for later workers. Shows rulings and vetoes in Desktop, where you can review and retire rulings. Its cooperative guard blocks code execution and process stdin writes in calls carrying a Kanban task marker on boards with active rulings; precedent_log.guard: strict extends this to every marked worker and delegated child. Explicit store-path checks remain in both modes; this is not a sandbox."
+description: "Saves a human's answer to a blocked Kanban question as a ruling for later workers. Shows rulings, timelines and saved answer receipts in Desktop for review and retirement. Its cooperative guard blocks code execution and process stdin writes in calls carrying a Kanban task marker on boards with active rulings; precedent_log.guard: strict extends this to every marked worker and delegated child. Explicit store-path checks remain in both modes; this is not a sandbox."
 maintainer: quotumorg
 tier: community
 category: memory
-requires_hermes: ">=0.23.0"
-version: "0.4.2"
+requires_hermes: ">=0.23.0,<0.24"
+version: "0.4.3"
 readme: true
 platforms: [linux, macos]
 known_issues:
   - "Four private board/execution-identity helpers require maintainer review; see catalog/CORE-ISSUE.md. No core overrides."
   - "In-process plugin mode only; the host does not supply the tested execution context or CLI path."
   - "Default enforce mode can leave a no-edit worker's card running after veto (B2). Core dead-worker recovery and retry settings apply; no deadline. Set precedent_log.veto to advisory to avoid that veto path."
-  - "Tested only on Hermes v0.23.0 at 2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19; the version floor does not establish later compatibility."
+  - "Offline verified on Hermes v0.23.0 at 2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19 and v0.23.1. Other accepted 0.23.x patches are not individually verified; packaged Desktop app untested."
 capabilities:
   provides_tools: []
   provides_hooks:

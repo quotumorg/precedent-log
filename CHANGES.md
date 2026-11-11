@@ -1,0 +1,7 @@
+# Changes
+
+## 0.4.3
+
+- The demo accepts stable Hermes source versions >=0.23.0,<0.24 instead of requiring one Git commit, and supports prepared Python >=3.11,<3.15 environments.
+- Desktop rulings include a bounded timeline of save, cite/explain and retirement events, with card IDs, recorded times and explicit omissions or missing times.
+- Desktop saved answer receipts show existing author, source and time metadata alongside the answer, without claiming an authenticated approver or tool approval.
