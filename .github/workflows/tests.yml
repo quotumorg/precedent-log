@@ -21,8 +21,8 @@ jobs:
         with:
           repository: NousResearch/hermes-agent
           ref: 2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19
-          # A shallow SHA fetch does not auto-follow the release tag. Fetch all refs
-          # so preflight can read v0.23.0 while ref stays pinned to the exact commit.
+          # fetch-tags: true only allows auto-follow, which misses this shallow SHA tag.
+          # Fetch all refs so preflight resolves v0.23.0 at the exact commit pin.
           fetch-depth: 0
           path: hermes-src
       - uses: actions/setup-python@v5

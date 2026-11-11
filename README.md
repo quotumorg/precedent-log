@@ -50,26 +50,28 @@ Use the same profile's `HERMES_HOME`. A catalog install follows the catalog's re
 hermes plugins update precedent-log
 ```
 
-While the catalog still pins 0.4.2, this does not install 0.4.3. An unpinned source install follows its remote branch with the same update command. To install the reviewed 0.4.3 runtime explicitly, including when replacing a catalog or SHA-pinned install:
+While the catalog still pins 0.4.2, this does not install 0.4.3. An unpinned source install follows its remote branch with the same update command. After the pinned revision below is published on public `main`, install the reviewed 0.4.3 runtime explicitly, including when replacing a catalog or SHA-pinned install:
 
 ```sh
 hermes plugins install quotumorg/precedent-log --force --enable \
   --ref 1aebc2bffd3fb68dfc3c49d8f1330dda3e531b6f
 ```
 
-This revision must be published before the pinned command can download it. Review any install scan prompt. The explicit source pin is held until you reinstall with another `--ref`; it does not follow future catalog updates. No ruling migration is needed: records stay in `<HERMES_HOME>/precedent-log/`, outside the plugin code directory. Restart Hermes sessions after upgrading and check `hermes plugins list` for version 0.4.3. For a manually copied install, repeat the copy below into the existing plugin directory, keeping the profile's configuration and ruling store.
+Review any install scan prompt. The explicit source pin is held until you reinstall with another `--ref`; it does not follow future catalog updates. No ruling migration is needed: records stay in `<HERMES_HOME>/precedent-log/`, outside the plugin code directory. Restart Hermes sessions after upgrading and check `hermes plugins list` for version 0.4.3. For a manually copied install, repeat the copy below into the existing plugin directory, keeping the profile's configuration and ruling store.
 
 ### Manual install
 
-The copy path installs just the runtime plugin and was checked offline:
+The copy path installs just the runtime plugin and was checked offline. It requires the same publication step as the pinned upgrade above. Replace `/path/to/your/chosen-profile` before running. A fresh temporary source directory works for both first installs and upgrades, even if an older `precedent-log` checkout already exists:
 
 ```sh
-git clone https://github.com/quotumorg/precedent-log
-git -C precedent-log checkout --detach 1aebc2bffd3fb68dfc3c49d8f1330dda3e531b6f
-export HERMES_HOME=/path/to/your/chosen-profile
+PRECEDENT_SOURCE="$(mktemp -d)"
+git clone https://github.com/quotumorg/precedent-log "$PRECEDENT_SOURCE"
+git -C "$PRECEDENT_SOURCE" checkout --detach 1aebc2bffd3fb68dfc3c49d8f1330dda3e531b6f
+export HERMES_HOME="/path/to/your/chosen-profile"
 mkdir -p "$HERMES_HOME/plugins/precedent-log"
-cp -R precedent-log/plugin.yaml precedent-log/__init__.py precedent-log/LICENSE \
-  precedent-log/precedent_log precedent-log/desktop "$HERMES_HOME/plugins/precedent-log/"
+cp -R "$PRECEDENT_SOURCE/plugin.yaml" "$PRECEDENT_SOURCE/__init__.py" \
+  "$PRECEDENT_SOURCE/LICENSE" "$PRECEDENT_SOURCE/precedent_log" \
+  "$PRECEDENT_SOURCE/desktop" "$HERMES_HOME/plugins/precedent-log/"
 ```
 
 Merge these settings into `<HERMES_HOME>/config.yaml`, keeping existing enabled plugins:
@@ -86,6 +88,8 @@ plugins:
 ```
 
 Hermes v0.23.0 defaults to `in_process` when this setting is absent. Set it explicitly if the profile uses `host`: host mode does not provide the tested CLI or worker context. This setting applies to all plugins in the profile. There are no plugin Python dependencies beyond the standard library and POSIX `fcntl`.
+
+Restart existing Hermes sessions on this profile after copying and merging the configuration. Run `hermes plugins list` in the same profile and check that `precedent-log` is enabled at version 0.4.3 before saving a ruling.
 
 ### Save and inspect your first ruling
 
@@ -413,7 +417,7 @@ In those private r3 runs, one Haiku T2 took the prompt path. That historical obs
 
 ## Try the recorded scenario locally
 
-Prerequisites: a prepared Python `>=3.11,<3.15` Hermes environment and complete stable Hermes `>=0.23.0,<0.24` source, including `tests.fakes.fake_llm_provider` (an arbitrary installed wheel is insufficient). Follow the pinned [Hermes setup instructions](https://github.com/NousResearch/hermes-agent/blob/2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19/CONTRIBUTING.md#development-setup) to prepare that environment. Python 3.14 is not required by the demo: its standard-library features need 3.11 or newer. Preflight and fake-helper compilation also passed on Python 3.13; full offline runs use the prepared Python 3.14 lab. Source versions come from `pyproject.toml`, with an exact `vX.Y.Z` Git tag required when package metadata is missing or `0.0.0`; prereleases and unversioned source are refused. The demo preflights the interpreter, source version/files and fake helper syntax/classes before creating output; it does not provision dependencies. Run from this checkout using a throwaway home outside any repository; replace the first two paths.
+Prerequisites: a prepared Python `>=3.11,<3.15` Hermes environment and complete stable Hermes `>=0.23.0,<0.24` source, including `tests.fakes.fake_llm_provider` (an arbitrary installed wheel is insufficient). Follow the pinned [Hermes setup instructions](https://github.com/NousResearch/hermes-agent/blob/2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19/CONTRIBUTING.md#development-setup) to prepare that environment. Python 3.14 is not required by the demo: its standard-library features need 3.11 or newer. Preflight and fake-helper compilation also passed on Python 3.13; full offline runs use a prepared Python 3.14 environment. Source versions come from `pyproject.toml`, with an exact `vX.Y.Z` Git tag required when package metadata is missing or `0.0.0`; prereleases and unversioned source are refused. The demo preflights the interpreter, source version/files and fake helper syntax/classes before creating output; it does not provision dependencies. Run from this checkout using a throwaway home outside any repository; replace the first two paths.
 
 ```sh
 HERMES_PYTHON=/path/to/hermes-venv/bin/python
@@ -542,7 +546,7 @@ Descriptions of the first six entries follow the supplied 2026-11-06 research sn
 
 **Registrations:** five hooks (`pre_tool_call`, `kanban_task_blocked`, `pre_verify`, `post_tool_call`, `on_session_end`), two slash commands (`ruling`, `rulings`), one CLI command (`precedent`: add, retire, repair, list, show, verify, stats, cited-by) one bounded prompt section (`precedent-log.board`) and a native Desktop status item plus Rulings page; no model tools or middleware. Four private helpers remain (public API request drafted in [catalog/CORE-ISSUE.md](catalog/CORE-ISSUE.md), not submitted): `get_current_board`, `kanban_db_path`, `owned_kanban_task`, `is_delegated_child_process_context`. They resolve board/execution identity and carry catalog rule 9 compatibility/admission risk. No core functions are replaced. Version 0.2.2 strengthens the veto text only; it adds no continuation or reclaim mechanism, no hooks and no private helpers.
 
-**Opt-in demo:** reads the supplied Hermes source and local repository; copies only runtime plugin files into an empty lab home; writes config, boards, worker data, artifacts and transcripts. Starts bounded local subprocesses and, in fake mode, a loopback HTTP server. The supplied Python audit-hook checks apply to the in-process harness only. Subprocesses, native network and native file access are outside those checks. This is not an OS sandbox; run the demo in a throwaway home outside any repository. See [demo limits](demo/README.md). Real mode sends task/context data to the explicitly selected provider and can incur its charges. Only the named environment credential is forwarded; its value is redacted from transcripts and never written to config. The adapter uses additional private core Python entrypoints; it is not installed as plugin runtime.
+**Opt-in demo:** reads the supplied Hermes source and local repository; copies only runtime plugin files into an empty throwaway home; writes config, boards, worker data, artifacts and transcripts. Starts bounded local subprocesses and, in fake mode, a loopback HTTP server. The supplied Python audit-hook checks apply to the in-process harness only. Subprocesses, native network and native file access are outside those checks. This is not an OS sandbox; run the demo in a throwaway home outside any repository. See [demo limits](demo/README.md). Real mode sends task/context data to the explicitly selected provider and can incur its charges. Only the named environment credential is forwarded; its value is redacted from transcripts and never written to config. The adapter uses additional private core Python entrypoints; it is not installed as plugin runtime.
 
 The [catalog template](catalog/precedent-log.yaml) intentionally contains a SHA placeholder, the matching version, all five hook names, an explicit command/section inventory, empty tools/middleware/env declarations, and Linux/macOS platform limits. The catalog schema has no command/section capability fields, so their inventory is recorded as YAML comments. An actual catalog submission must replace the placeholder with the full reviewed commit and pin its documentation and image URLs to that commit. Private-helper warnings remain for maintainer review; validation does not decide catalog admission.
 
