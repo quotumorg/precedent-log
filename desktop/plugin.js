@@ -12,6 +12,9 @@ const plural = (n, singular, many = singular + 's') => n === 1 ? singular : many
 const count = n => Number.isSafeInteger(n) && n >= 0
 const stamp = s => typeof s === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(s)
   && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().replace('.000Z', 'Z') === s && Date.parse(s) <= Date.now()
+const recordedTime = s => s === null || stamp(s)
+const when = s => s ? s.replace('T', ' ').replace('Z', ' UTC') : 'time not recorded'
+const jobPattern = /^[A-Za-z0-9_-]{1,128}$/
 const age = s => {
   const seconds = Math.floor((Date.now() - Date.parse(s)) / 1000)
   return seconds < 60 ? 'just now' : seconds < 3600 ? `${Math.floor(seconds / 60)} min ago`
@@ -36,6 +39,21 @@ function parse(result) {
         || !Array.isArray(row.jobs) || row.jobs.length > 20 || row.jobs.some(j => typeof j !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(j))
         || typeof row.cap_reached !== 'boolean' || !count(row.cited_count) || row.cited_count < row.jobs.length || !count(row.veto_count)
         || (row.last_veto !== null && !stamp(row.last_veto))) throw Error('Unavailable')
+    if (!Array.isArray(row.timeline) || row.timeline.length < 1 || row.timeline.length > 52
+        || !count(row.timeline_total) || row.timeline_total < row.timeline.length
+        || !row.receipt || !text(row.receipt.author, 160) || ![null, 'cli', 'slash'].includes(row.receipt.surface)
+        || !recordedTime(row.receipt.at) || !text(row.receipt.source_task, 128)) throw Error('Unavailable')
+    let saves = 0, retirements = 0
+    for (const event of row.timeline) {
+      if (!event || !['saved', 'cite', 'explain', 'retired'].includes(event.kind)
+          || !recordedTime(event.at) || !text(event.detail, 240)) throw Error('Unavailable')
+      if (event.kind === 'saved' || event.kind === 'retired') {
+        if (event.task_id !== null) throw Error('Unavailable')
+        if (event.kind === 'saved') saves++
+        else retirements++
+      } else if (typeof event.task_id !== 'string' || !jobPattern.test(event.task_id)) throw Error('Unavailable')
+    }
+    if (saves !== 1 || retirements !== (row.status === 'retired' ? 1 : 0)) throw Error('Unavailable')
     ids.add(row.id)
   }
   if (data.last_veto !== null && (!data.last_veto || !idPattern.test(data.last_veto.id)
@@ -166,8 +184,18 @@ export default {
               h('p', { style: { margin: 0 } }, `keys: ${row.keys.join(', ') || '(none)'} · cited by ${row.cited_count} completed ${plural(row.cited_count, 'job')}`),
               h('p', { style: { margin: 0 } }, `${plural(row.veto_count, 'Veto', 'Vetoes')}: ${row.veto_count} · last veto: ${row.last_veto ? age(row.last_veto) : 'none'}`)),
             row.cap_reached ? h('p', { style: meta }, 'veto cap reached') : null,
-            h('details', null, h('summary', { style: { cursor: 'pointer' } }, 'Ruling and cited jobs'),
+            h('details', null, h('summary', { style: { cursor: 'pointer' } }, 'Ruling, receipt and timeline'),
               h('p', { style: { whiteSpace: 'pre-wrap', margin: '12px 0', lineHeight: 1.6 } }, row.ruling),
+              h('p', { style: meta }, `Saved answer receipt: ${row.receipt.author || 'author not recorded'} · ${row.receipt.surface || 'source not recorded'} · ${when(row.receipt.at)}`),
+              row.receipt.source_task ? h('p', { style: meta }, `Source card: ${row.receipt.source_task}`) : null,
+              h('p', { style: meta }, 'Author is a recorded CLI user or slash session label, not an authenticated approver. The answer is shown above.'),
+              h('h3', { style: { fontSize: 14, fontWeight: 500, margin: '16px 0 8px' } }, 'Timeline'),
+              h('ol', { 'aria-label': `Timeline for ${row.id}`, style: { ...meta, paddingLeft: 20, display: 'grid', gap: 6 } },
+                ...row.timeline.map((event, index) => h('li', { key: index },
+                  event.at ? h('time', { dateTime: event.at }, when(event.at)) : 'time not recorded',
+                  ` · ${event.kind}${event.task_id ? ` · card ${event.task_id}` : ''}${event.detail ? ` · ${event.detail}` : ''}`))),
+              row.timeline_total > row.timeline.length ? h('p', { style: meta },
+                `Showing ${row.timeline.length} of ${row.timeline_total} timeline events: saved, the latest 50 cite/explain records, and retirement when present.`) : null,
               h('p', { style: meta }, `Completed ${plural(row.cited_count, 'job')} (${row.jobs.length}/${row.cited_count} shown): ${row.jobs.join(', ') || '(none)'}`),
               h('p', { style: meta }, 'Question and ruling text limited to 2,000 characters; job list limited to 20 IDs.')),
             row.status === 'active' && view.confirm?.id !== row.id ? h('div', null, button(`Retire ${row.id}`, () => {

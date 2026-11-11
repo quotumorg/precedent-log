@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from support import IsolatedTest
 from precedent_log.commands import ruling, rulings
-from precedent_log.desktop import HEADER, MAX_ROWS, OUTPUT_BYTES
+from precedent_log.desktop import HEADER, MAX_ROWS, MAX_TIMELINE_JOBS, OUTPUT_BYTES
 from precedent_log.stats import Events
 from precedent_log.store import Store
 from precedent_log.status import STORE_BYTES
@@ -19,6 +19,88 @@ class DesktopTests(IsolatedTest):
 
     def saved(self):
         return Store('default').add('schema migrations', 'Use staging.', ['schema', 'migrations'])
+
+    def test_timeline_save_cite_explain_retire_and_receipt(self):
+        with patch('precedent_log.store.timestamp', return_value='2026-01-01T10:00:00Z'):
+            result = ruling('add schema migrations => Use staging. [keys: schema, migrations]',
+                            platform='desktop', session_key='session-example')
+        self.assertEqual(result, 'Added P-1')
+        events = Events('default')
+        with patch('precedent_log.stats.timestamp', return_value='2026-01-01T11:00:00Z'):
+            events.record('citation', 'card-1', ['P-1'], veto=True)
+            events.record('justification', 'card-2', ['P-1'])
+            events.record('relied', 'card-1', ['P-1'])
+        with patch('precedent_log.store.timestamp', return_value='2026-01-01T12:00:00Z'):
+            Store('default').retire('P-1', 'Superseded policy.')
+        root = self.home / 'precedent-log'
+        before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in root.iterdir()}
+        row = self.snapshot()['rows'][0]
+        self.assertEqual(row['receipt'], {'author': 'desktop:session-example', 'surface': 'slash',
+                         'at': '2026-01-01T10:00:00Z', 'source_task': ''})
+        self.assertEqual(row['ruling'], 'Use staging.')
+        self.assertEqual([item['kind'] for item in row['timeline']], ['saved', 'cite', 'explain', 'cite', 'retired'])
+        self.assertEqual([item['task_id'] for item in row['timeline']], [None, 'card-1', 'card-2', 'card-1', None])
+        self.assertEqual(row['timeline'][1]['detail'], 'block vetoed')
+        self.assertEqual(row['timeline'][3]['detail'], 'completed')
+        self.assertEqual(row['timeline'][-1]['detail'], 'Superseded policy.')
+        self.assertEqual(row['timeline'][-1]['at'], '2026-01-01T12:00:00Z')
+        self.assertEqual(row['timeline_total'], 5)
+        self.assertEqual(row['cited_count'], 1)
+        self.assertEqual(before, {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in root.iterdir()})
+
+    def test_timeline_legacy_event_without_time(self):
+        self.saved()
+        events = Events('default')
+        events.record('citation', 'old-card', ['P-1'])
+        raw = json.loads(events.path.read_text())
+        del raw['created_at']
+        events.path.write_text(json.dumps(raw) + '\n')
+        row = self.snapshot()['rows'][0]
+        self.assertIsNone(row['timeline'][1]['at'])
+        self.assertEqual(row['timeline'][1]['task_id'], 'old-card')
+
+    def test_timeline_bounds_keep_lifecycle_and_show_omissions(self):
+        self.saved()
+        for n in range(MAX_TIMELINE_JOBS + 3):
+            Events('default').record('relied', f'card-{n}', ['P-1'])
+        Store('default').retire('P-1', 'Finished.')
+        row = self.snapshot()['rows'][0]
+        self.assertEqual(len(row['timeline']), MAX_TIMELINE_JOBS + 2)
+        self.assertEqual(row['timeline_total'], MAX_TIMELINE_JOBS + 5)
+        self.assertEqual(row['timeline'][0]['kind'], 'saved')
+        self.assertEqual(row['timeline'][1]['task_id'], 'card-3')
+        self.assertEqual(row['timeline'][-1]['kind'], 'retired')
+        self.assertEqual(row['cited_count'], MAX_TIMELINE_JOBS + 3)
+
+    def test_cli_receipt_uses_recorded_author_time_answer_and_source(self):
+        import argparse
+        import contextlib
+        import io
+        from precedent_log.commands import cli, setup_cli
+        parser = argparse.ArgumentParser()
+        setup_cli(parser)
+        with patch('precedent_log.commands.getpass.getuser', return_value='operator'), \
+                patch('precedent_log.store.timestamp', return_value='2026-01-01T10:00:00Z'), \
+                contextlib.redirect_stdout(io.StringIO()):
+            cli(parser.parse_args(['add', '--board', 'default', '--question', 'which environment?',
+                                  '--ruling', 'Use staging.', '--source-task', 'source-card']))
+        row = self.snapshot()['rows'][0]
+        self.assertEqual(row['receipt'], {'author': 'operator', 'surface': 'cli',
+                         'at': '2026-01-01T10:00:00Z', 'source_task': 'source-card'})
+        self.assertEqual(row['ruling'], 'Use staging.')
+        self.assertEqual(Store('default').list()[0]['author'], 'operator')
+
+    def test_timeline_bad_job_time_and_torn_records_are_unavailable(self):
+        self.saved()
+        events = Events('default')
+        events.record('justification', 'card-1', ['P-1'])
+        event = json.loads(events.path.read_text())
+        for bad in ({**event, 'task_id': 'bad card'}, {**event, 'created_at': 'invalid'},
+                    {**event, 'created_at': '2999-01-01T00:00:00Z'}, {**event, 'veto': 'yes'}):
+            events.path.write_text(json.dumps(bad) + '\n')
+            self.assertEqual(self.snapshot()['state'], 'unavailable')
+        events.path.write_text(json.dumps(event))
+        self.assertEqual(self.snapshot()['state'], 'unavailable')
 
     def test_empty_no_board_and_no_writes(self):
         self.assertEqual(self.snapshot(), {'state': 'empty', 'board': 'default'})

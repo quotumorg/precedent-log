@@ -9,8 +9,17 @@ const snapshot = {
   state: 'ready', board: 'default', active: 3, total: 3, truncated: false, cap_reached: false,
   last_veto: { id: 'P-1', title: 'schema migrations', at: '2026-11-07T12:00:00Z' },
   rows: [{ id: 'P-1', title: 'schema migrations', keys: ['schema', 'migrations'], status: 'active',
-    ruling: 'Use staging.', jobs: ['job-1'], cited_count: 1, veto_count: 2, cap_reached: false, last_veto: '2026-11-07T12:00:00Z' }],
+    ruling: 'Use staging.', jobs: ['job-1'], cited_count: 1, veto_count: 2, cap_reached: false, last_veto: '2026-11-07T12:00:00Z',
+    receipt: { author: 'desktop:session-example', surface: 'slash', at: '2026-11-07T10:00:00Z', source_task: 'source-card' },
+    timeline_total: 4, timeline: [
+      { kind: 'saved', at: '2026-11-07T10:00:00Z', task_id: null, detail: '' },
+      { kind: 'cite', at: '2026-11-07T11:00:00Z', task_id: 'job-1', detail: 'completed' },
+      { kind: 'explain', at: null, task_id: 'old-card', detail: 'block-time' },
+      { kind: 'cite', at: '2026-11-07T12:00:00Z', task_id: 'job-2', detail: 'block vetoed' },
+    ] }],
 }
+const retiredRow = row => ({ ...row, status: 'retired', timeline_total: row.timeline_total + 1,
+  timeline: [...row.timeline, { kind: 'retired', at: '2026-11-07T12:01:00Z', task_id: null, detail: 'Retired from Desktop' }] })
 const encode = data => 'precedent-log rulings v1\n' + JSON.stringify(data)
 const sessionOutput = encode(snapshot)
 const source = await readFile(new URL('../desktop/plugin.js', import.meta.url), 'utf8')
@@ -107,7 +116,22 @@ assert.equal(chip.data.to, '/precedent-rulings')
 assert.match(dump(page()), /P-1 schema migrations/)
 assert.match(dump(page()), /Use staging./)
 assert.match(dump(page()), /job-1/)
+assert.match(dump(page()), /Saved answer receipt: desktop:session-example · slash/)
+assert.match(dump(page()), /Source card: source-card/)
+assert.match(dump(page()), /not an authenticated approver/)
+assert.match(dump(page()), /2026-11-07 11:00:00 UTC\s+· cite · card job-1 · completed/)
+assert.match(dump(page()), /time not recorded\s+· explain · card old-card/)
+assert.match(dump(page()), /cite · card job-2 · block vetoed/)
+assert.ok(nodes(page()).some(n => n.tag === 'ol' && n.props['aria-label'] === 'Timeline for P-1'))
+assert.ok(nodes(page()).some(n => n.tag === 'time' && n.props.dateTime === '2026-11-07T11:00:00Z'))
 console.log('PAGE: ' + dump(page()))
+// Limits disclose omitted history; missing legacy metadata never becomes an identity or time.
+host.request = async () => ({ type: 'exec', output: encode({ ...snapshot, rows: [{ ...snapshot.rows[0],
+  timeline_total: 80, receipt: { author: '', surface: null, at: null, source_task: '' },
+}] }) })
+await timer()
+assert.match(dump(page()), /Showing 4 of 80 timeline events/)
+assert.match(dump(page()), /author not recorded · source not recorded · time not recorded/)
 // Full questions wrap on the page; the status retains its independently bounded title.
 const longQuestion = 'Which database should we use for the schema migration in the local plan?'
 for (const n of [0, 1, 2]) {
@@ -172,7 +196,7 @@ host.request = async (_, params) => {
     retired = true
     return { type: 'exec', output: 'P-1 retired. 1 completed job cited it: job-1.' }
   }
-  return { type: 'exec', output: encode(retired ? { ...snapshot, rows: [{ ...snapshot.rows[0], status: 'retired' }] } : snapshot) }
+  return { type: 'exec', output: encode(retired ? { ...snapshot, rows: [retiredRow(snapshot.rows[0])] } : snapshot) }
 }
 await timer()
 writes.length = 0
@@ -191,6 +215,7 @@ assert.ok(!dump(page()).includes('Use staging.'))
 await settle()
 assert.deepEqual(writes, ['/ruling retire P-1 Retired from Desktop --board default', '/rulings list --json'])
 assert.match(dump(page()), /retired/)
+assert.match(dump(page()), /2026-11-07 12:01:00 UTC\s+· retired · Retired from Desktop/)
 assert.ok(nodes(page()).some(x => x.props['data-slot'] === 'badge' && x.props.variant === 'muted'))
 assert.ok(!nodes(page()).some(n => n.tag === 'button' && dump(n) === 'Retire P-1'))
 // A backend error remains visible; the subsequent read remains authoritative.
@@ -279,6 +304,19 @@ for (const output of ['header\n' + sessionOutput.split('\n')[1],
   encode({ ...snapshot, rows: [{ ...snapshot.rows[0], ruling: 'x'.repeat(2001) }] }),
   encode({ ...snapshot, rows: [snapshot.rows[0], snapshot.rows[0]] }),
   encode({ ...snapshot, rows: [{ ...snapshot.rows[0], cited_count: 0 }] }),
+  ...[
+    { timeline: null }, { timeline: [] }, { timeline_total: 0 }, { timeline: Array(53).fill(snapshot.rows[0].timeline[0]) },
+    { timeline: [{ ...snapshot.rows[0].timeline[0], at: '2026-02-31T10:00:00Z' }] },
+    { timeline: [{ ...snapshot.rows[0].timeline[0], at: '2999-01-01T10:00:00Z' }] },
+    { timeline: [{ ...snapshot.rows[0].timeline[0], kind: 'approval' }] },
+    { timeline: [snapshot.rows[0].timeline[0], { ...snapshot.rows[0].timeline[1], task_id: 'bad card' }] },
+    { timeline: [snapshot.rows[0].timeline[0], { ...snapshot.rows[0].timeline[1], detail: 'x'.repeat(241) }] },
+    { timeline: [snapshot.rows[0].timeline[0], snapshot.rows[0].timeline[0]] },
+    { status: 'retired' }, { receipt: null },
+    { receipt: { ...snapshot.rows[0].receipt, author: 'x'.repeat(161) } },
+    { receipt: { ...snapshot.rows[0].receipt, surface: 'authenticated-human' } },
+    { receipt: { ...snapshot.rows[0].receipt, at: 'invalid' } },
+  ].map(fields => encode({ ...snapshot, rows: [{ ...snapshot.rows[0], ...fields }] })),
   encode({ ...snapshot, extra: '界'.repeat(30000) }),
   encode({ ...snapshot, board: null }),
   'precedent-log rulings v1\nnull']) {

@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 import json
 import re
+from collections import deque
 
 from .stats import Events
 from .status import bounded_read, STORE_BYTES, EVENT_LINE_BYTES, STATUS_ID, capped_rulings, short_title
@@ -11,6 +12,7 @@ HEADER = 'precedent-log rulings v1'
 OUTPUT_BYTES = 64 * 1024
 MAX_ROWS = 50
 MAX_JOBS = 20
+MAX_TIMELINE_JOBS = 50
 
 
 def clean(value, limit):
@@ -19,6 +21,20 @@ def clean(value, limit):
 
 def encode(data):
     return HEADER + '\n' + json.dumps(data, ensure_ascii=True, separators=(',', ':'))
+
+
+def event_time(value):
+    if value is None or value == '':
+        return None
+    when = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if when.tzinfo is None or when > datetime.now(timezone.utc):
+        raise ValueError('invalid timestamp')
+    return when.astimezone(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+
+def lifecycle(kind, record):
+    return {'kind': kind, 'at': event_time(record.get('created_at')), 'task_id': None,
+            'detail': clean(record.get('reason', ''), 240)}
 
 
 def snapshot():
@@ -40,7 +56,10 @@ def snapshot():
             raw, _ = bounded_read(events.path, STORE_BYTES)
         except FileNotFoundError:
             raw = b''
-        metrics = {rid: {'jobs': set(), 'veto_count': 0, 'last_veto': None} for rid in state.entries}
+        if raw and not raw.endswith(b'\n'):
+            raise ValueError('unterminated event history')
+        metrics = {rid: {'jobs': set(), 'veto_count': 0, 'last_veto': None,
+                         'timeline': deque(maxlen=MAX_TIMELINE_JOBS), 'timeline_count': 0} for rid in state.entries}
         latest = None
         for line in raw.splitlines():
             if len(line) > EVENT_LINE_BYTES:
@@ -49,7 +68,7 @@ def snapshot():
             if (not isinstance(event, dict) or type(event.get('v')) is not int or event['v'] != 1
                     or event.get('board') != board or not isinstance(event.get('event'), str)):
                 raise ValueError('invalid event')
-            if event['event'] not in {'relied', 'veto'}:
+            if event['event'] not in {'relied', 'veto', 'citation', 'justification'}:
                 continue
             ids = event.get('ids')
             job = event.get('task_id')
@@ -57,17 +76,23 @@ def snapshot():
                     or any(not isinstance(rid, str) or rid not in metrics for rid in ids)
                     or not isinstance(job, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', job)):
                 raise ValueError('invalid citation/veto')
-            when = datetime.fromisoformat(event['created_at'].replace('Z', '+00:00'))
-            if when.tzinfo is None or when > datetime.now(timezone.utc):
-                raise ValueError('invalid timestamp')
-            stamp = when.astimezone(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+            stamp = event_time(event.get('created_at'))
+            if 'veto' in event and type(event['veto']) is not bool:
+                raise ValueError('invalid veto flag')
             for rid in set(ids):
                 if event['event'] == 'relied':
                     metrics[rid]['jobs'].add(job)
-                else:
+                elif event['event'] == 'veto':
                     metrics[rid]['veto_count'] += 1
-                    metrics[rid]['last_veto'] = max(metrics[rid]['last_veto'] or stamp, stamp)
-            if event['event'] == 'veto' and (latest is None or stamp >= latest['at']):
+                    if stamp:
+                        metrics[rid]['last_veto'] = max(metrics[rid]['last_veto'] or stamp, stamp)
+                if event['event'] != 'veto':
+                    kind = 'explain' if event['event'] == 'justification' else 'cite'
+                    detail = ('completed' if event['event'] == 'relied' else
+                              'block vetoed' if event.get('veto') else 'block-time')
+                    metrics[rid]['timeline'].append({'kind': kind, 'at': stamp, 'task_id': job, 'detail': detail})
+                    metrics[rid]['timeline_count'] += 1
+            if event['event'] == 'veto' and stamp and (latest is None or stamp >= latest['at']):
                 latest = {'id': ids[0], 'title': short_title(state.entries[ids[0]]['question']), 'at': stamp}
         capped = capped_rulings(store)
         data = {'state': 'ready' if state.entries else 'empty', 'board': board,
@@ -78,11 +103,22 @@ def snapshot():
                 raise ValueError('invalid id')
             metric = metrics[rid]
             jobs = sorted(metric['jobs'])
+            timeline = [lifecycle('saved', entry), *metric['timeline']]
+            if entry.get('retired'):
+                timeline.append(lifecycle('retired', entry.get('retirement', {})))
+            # Missing times retain log order; never substitute the save or read time.
+            if all(item['at'] for item in timeline):
+                timeline.sort(key=lambda item: item['at'])
+            receipt = {'author': clean(entry.get('author', ''), 160),
+                       'surface': entry.get('surface'), 'at': event_time(entry.get('created_at')),
+                       'source_task': clean(entry.get('source_task') or '', 128)}
             row = {'id': rid, 'title': clean(entry['question'], 2000),
                    'keys': [clean(key, 80) for key in entry.get('keys', [])[:20]],
                    'status': 'retired' if entry.get('retired') else 'active',
                    'ruling': entry['ruling'][:2000], 'jobs': jobs[:MAX_JOBS], 'cited_count': len(jobs),
-                   'veto_count': metric['veto_count'], 'cap_reached': rid in capped, 'last_veto': metric['last_veto']}
+                   'veto_count': metric['veto_count'], 'cap_reached': rid in capped, 'last_veto': metric['last_veto'],
+                   'receipt': receipt, 'timeline': timeline,
+                   'timeline_total': metric['timeline_count'] + 1 + bool(entry.get('retired'))}
             data['rows'].append(row)
             if len(data['rows']) > MAX_ROWS or len(encode(data).encode()) > OUTPUT_BYTES:
                 data['rows'].pop()
