@@ -275,23 +275,22 @@ with kbc.connect_closing() as conn:
         from types import SimpleNamespace
         args = SimpleNamespace(run_id='preflight', hermes_source=LAB_SOURCE,
                                out=self.home / 'new-output', hermes_home=self.home / 'new-home')
-        with patch('demo.run.sys.version_info', (3, 13, 0)), self.assertRaisesRegex(ValueError, '>=3.14,<3.15'):
+        with patch('demo.run.sys.version_info', (3, 10, 0)), self.assertRaisesRegex(ValueError, '>=3.11,<3.15'):
             Harness(args)
         self.assertFalse(args.out.exists())
         self.assertFalse(args.hermes_home.exists())
         self.assertEqual(preflight(LAB_SOURCE), LAB_SOURCE.resolve())
         source = self.home / 'incomplete-source'
         source.mkdir()
-        with self.assertRaisesRegex(ValueError, 'Complete pinned Hermes source'):
+        with self.assertRaisesRegex(ValueError, 'Complete Hermes source'):
             preflight(source)
         for name in ('hermes_cli/main.py', 'run_agent.py', 'pyproject.toml'):
             p = source / name
             p.parent.mkdir(exist_ok=True)
             p.write_text('')
-        from demo.run import HERMES_PIN
         args.hermes_source = source
-        for revision, expected in [('0' * 40, 'requires Hermes v0.23.0'), (HERMES_PIN, 'include tests.fakes')]:
-            with patch('demo.run.subprocess.run', return_value=SimpleNamespace(returncode=0, stdout=revision)), \
+        for version, expected in [('v0.24.0', 'requires Hermes >=0.23.0,<0.24'), ('v0.23.0', 'include tests.fakes')]:
+            with patch('demo.run.subprocess.run', return_value=SimpleNamespace(returncode=0, stdout=version)), \
                     self.assertRaisesRegex(ValueError, expected):
                 Harness(args)
             self.assertFalse(args.out.exists())

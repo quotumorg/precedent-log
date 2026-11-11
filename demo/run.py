@@ -16,11 +16,12 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import uuid
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-HERMES_PIN = "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19"
+HERMES_RANGE = ">=0.23.0,<0.24"
 FIXTURES = ("migration", "dependency-upgrade", "customer-copy", "log-retention")
 
 
@@ -34,19 +35,25 @@ def load_fixture(name="migration"):
 
 def preflight(source):
     """Read-only prerequisites before creating any run output or importing Hermes."""
-    if sys.version_info[:2] != (3, 14):
-        raise ValueError("Demo requires Python >=3.14,<3.15 from the prepared Hermes environment")
+    if not (3, 11) <= sys.version_info[:2] < (3, 15):
+        raise ValueError("Demo requires Python >=3.11,<3.15 from the prepared Hermes environment")
     source = Path(source).expanduser().resolve(strict=True)
     for name in ("hermes_cli/main.py", "run_agent.py", "pyproject.toml"):
         if not (source / name).is_file():
-            raise ValueError("Complete pinned Hermes source required; missing " + name)
-    revision = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
-                              capture_output=True, text=True, timeout=10)
-    if revision.returncode or revision.stdout.strip() != HERMES_PIN:
-        raise ValueError("Demo requires Hermes v0.23.0 source at " + HERMES_PIN)
+            raise ValueError("Complete Hermes source required; missing " + name)
+    # Read metadata, never import Hermes or consult the user's installed package.
+    version = tomllib.loads((source / "pyproject.toml").read_text()).get("project", {}).get("version")
+    if version in (None, "0.0.0"):
+        # Hermes release checkouts can have a placeholder package version.
+        release = subprocess.run(["git", "-C", str(source), "describe", "--tags", "--exact-match", "--match", "v[0-9]*"],
+                                 capture_output=True, text=True, timeout=10)
+        version = release.stdout.strip().removeprefix("v") if release.returncode == 0 else None
+    parsed = re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", str(version))
+    if not parsed or not (0, 23, 0) <= tuple(map(int, parsed.groups())) < (0, 24, 0):
+        raise ValueError(f"Demo requires Hermes {HERMES_RANGE}; source version: {version or 'not recorded (need package version or exact release tag)'}")
     helper = source / "tests/fakes/fake_llm_provider.py"
     if not helper.is_file():
-        raise ValueError("Pinned source must include tests.fakes.fake_llm_provider")
+        raise ValueError("Complete source must include tests.fakes.fake_llm_provider")
     try:
         names = {node.name for node in ast.parse(helper.read_text()).body if isinstance(node, ast.ClassDef)}
     except (SyntaxError, UnicodeError) as exc:
