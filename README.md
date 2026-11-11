@@ -42,17 +42,34 @@ Verified separately on Hermes v0.23.0 in an empty `HERMES_HOME` at ref `f241ba38
 
 For a pinned install, add `--ref <full sha>` to the command. Use the intended profile's `HERMES_HOME` and start a new Hermes session after installation. Offline verified on Hermes v0.23.0 and v0.23.1 on POSIX; the install observations above remain specific to v0.23.0.
 
+### Upgrade from 0.4.2
+
+Use the same profile's `HERMES_HOME`. A catalog install follows the catalog's reviewed pin:
+
+```sh
+hermes plugins update precedent-log
+```
+
+While the catalog still pins 0.4.2, this does not install 0.4.3. An unpinned source install follows its remote branch with the same update command. To install the reviewed 0.4.3 runtime explicitly, including when replacing a catalog or SHA-pinned install:
+
+```sh
+hermes plugins install quotumorg/precedent-log --force --enable \
+  --ref 1aebc2bffd3fb68dfc3c49d8f1330dda3e531b6f
+```
+
+This revision must be published before the pinned command can download it. Review any install scan prompt. The explicit source pin is held until you reinstall with another `--ref`; it does not follow future catalog updates. No ruling migration is needed: records stay in `<HERMES_HOME>/precedent-log/`, outside the plugin code directory. Restart Hermes sessions after upgrading and check `hermes plugins list` for version 0.4.3. For a manually copied install, repeat the copy below into the existing plugin directory, keeping the profile's configuration and ruling store.
+
 ### Manual install
 
 The copy path installs just the runtime plugin and was checked offline:
 
 ```sh
 git clone https://github.com/quotumorg/precedent-log
-git -C precedent-log checkout --detach 363a5ad8c47cfdbf2c8af32ff8163cf0f3c7c458
+git -C precedent-log checkout --detach 1aebc2bffd3fb68dfc3c49d8f1330dda3e531b6f
 export HERMES_HOME=/path/to/your/chosen-profile
 mkdir -p "$HERMES_HOME/plugins/precedent-log"
 cp -R precedent-log/plugin.yaml precedent-log/__init__.py precedent-log/LICENSE \
-  precedent-log/precedent_log "$HERMES_HOME/plugins/precedent-log/"
+  precedent-log/precedent_log precedent-log/desktop "$HERMES_HOME/plugins/precedent-log/"
 ```
 
 Merge these settings into `<HERMES_HOME>/config.yaml`, keeping existing enabled plugins:
