@@ -249,3 +249,28 @@ class DesktopTests(IsolatedTest):
                         cli(parser.parse_args(['retire', row['id'], '--reason', 'obsolete', '--board', 'default']))
                     result = output.getvalue()
                 self.assertIn(f"{n} completed {'job' if n == 1 else 'jobs'} cited it", result)
+
+    def test_thousands_of_events_count_unique_jobs_and_keep_retired_timeline(self):
+        self.saved()
+        Store('default').retire('P-1', 'Finished.')
+        events = Events('default')
+        # Bulk-write real event schemas, avoiding quadratic writer recovery work.
+        rows = [{'v': 1, 'board': 'default', 'event': kind, 'ids': ['P-1'],
+                 'task_id': f'card-{n % 1000}', 'created_at': '2026-01-01T11:00:00Z'}
+                for n in range(3000) for kind in ('relied', 'citation')]
+        raw = ''.join(json.dumps(row, separators=(',', ':')) + '\n' for row in rows).encode()
+        self.assertLess(len(raw), STORE_BYTES)
+        events.path.write_bytes(raw)
+        # Page reads must use bounded_read, never Events._read or Path.read_bytes.
+        with patch.object(Events, '_read', side_effect=AssertionError('unbounded events read')), \
+                patch('pathlib.Path.read_bytes', side_effect=AssertionError('unbounded file read')):
+            row = self.snapshot()['rows'][0]
+        self.assertEqual(row['cited_count'], 1000)
+        self.assertEqual(len(row['jobs']), 20)
+        self.assertEqual(row['timeline_total'], 6002)
+        self.assertEqual(len(row['timeline']), 52)
+        self.assertEqual(sum(item['kind'] == 'retired' for item in row['timeline']), 1)
+        self.assertEqual(sum(item['kind'] == 'saved' for item in row['timeline']), 1)
+        # One damaged line in a long history must never yield partial totals.
+        events.path.write_bytes(raw + b'bad\n')
+        self.assertEqual(self.snapshot()['state'], 'unavailable')

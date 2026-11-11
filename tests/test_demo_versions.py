@@ -1,4 +1,5 @@
 """Read-only release preflight, without importing or starting a Hermes runtime."""
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -51,3 +52,16 @@ class DemoVersionTests(IsolatedTest):
             helper.write_text(content)
             with self.assertRaisesRegex(ValueError, error):
                 preflight(source)
+
+    def test_unversioned_source_without_tags_refuses_clearly(self):
+        source = self.source()
+        (source / 'pyproject.toml').write_text('[project]\nname = "hermes-agent"\n')
+        subprocess.run(['git', 'init', str(source)], check=True, capture_output=True)
+        subprocess.run(['git', '-C', str(source), 'add', '.'], check=True, capture_output=True)
+        subprocess.run(['git', '-C', str(source), '-c', 'user.name=test',
+                        '-c', 'user.email=test', 'commit', '-m', 'source'],
+                       check=True, capture_output=True)
+        with self.assertRaisesRegex(ValueError, 'source version: not recorded.*exact release tag'):
+            preflight(source)
+        subprocess.run(['git', '-C', str(source), 'tag', 'v0.23.1'], check=True, capture_output=True)
+        self.assertEqual(preflight(source), source.resolve())
