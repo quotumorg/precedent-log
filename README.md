@@ -1,5 +1,7 @@
 # precedent-log, a Hermes Agent plugin
 
+no keys · no network · never signs or pays · runs without a wallet
+
 Save a ruling for one Hermes profile and Kanban board. Later workers can consult it before asking the same question. A hook checks citation or explanation markers on eligible `kanban_block` calls.
 
 ![Precedent Log for Hermes Agent: answer once, later jobs check the ruling](docs/readme-1600x600.png)
